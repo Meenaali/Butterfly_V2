@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-python3 -m pip install -r requirements.txt
-python3 run.py
+.venv/bin/python run.py

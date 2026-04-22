@@ -3,7 +3,7 @@ services:
     name: butterfly-demo
     env: python
     plan: free
-    buildCommand: python3 -m pip install -r requirements.txt
+    buildCommand: python3 -m venv .venv && .venv/bin/python -m pip install --upgrade pip && .venv/bin/python -m pip install -r requirements.txt
     startCommand: bash start_render.sh
     autoDeploy: true
     envVars:
