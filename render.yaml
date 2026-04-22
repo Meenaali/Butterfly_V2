@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: python3 -m pip install -r requirements.txt
-    startCommand: python3 run.py
+    startCommand: bash start_render.sh
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION

@@ -72,7 +72,7 @@ Render will run:
 
 ```bash
 python3 -m pip install -r requirements.txt
-python3 run.py
+bash start_render.sh
 ```
 
 The app uses the hosting provider's `PORT` environment variable automatically.
@@ -83,7 +83,7 @@ If you create a Render `Web Service` manually:
 
 - Runtime: `Python`
 - Build command: `python3 -m pip install -r requirements.txt`
-- Start command: `python3 run.py`
+- Start command: `bash start_render.sh`
 - Python version: `3.12.7`
 
 ## API Endpoints
