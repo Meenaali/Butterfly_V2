@@ -20,7 +20,7 @@ Butterfly is a full-stack Western blot optimisation assistant. It is moving from
 ## Run Locally
 
 ```bash
-python run.py
+python3 run.py
 ```
 
 Then open:
@@ -50,7 +50,7 @@ butterfly-demo
 To choose a different local password:
 
 ```bash
-BUTTERFLY_PASSWORD="your-private-password" python run.py
+BUTTERFLY_PASSWORD="your-private-password" python3 run.py
 ```
 
 ## Deploy On Render
@@ -72,7 +72,7 @@ Render will run:
 
 ```bash
 pip install -r requirements.txt
-python run.py
+python3 run.py
 ```
 
 The app uses the hosting provider's `PORT` environment variable automatically.
@@ -83,7 +83,7 @@ If you create a Render `Web Service` manually:
 
 - Runtime: `Python`
 - Build command: `pip install -r requirements.txt`
-- Start command: `python run.py`
+- Start command: `python3 run.py`
 - Python version: `3.12.7`
 
 ## API Endpoints
