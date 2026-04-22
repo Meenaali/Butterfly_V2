@@ -71,7 +71,7 @@ Before sharing the Render link, add these Render environment variables:
 Render will run:
 
 ```bash
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 python3 run.py
 ```
 
@@ -82,7 +82,7 @@ The app uses the hosting provider's `PORT` environment variable automatically.
 If you create a Render `Web Service` manually:
 
 - Runtime: `Python`
-- Build command: `pip install -r requirements.txt`
+- Build command: `python3 -m pip install -r requirements.txt`
 - Start command: `python3 run.py`
 - Python version: `3.12.7`
 
