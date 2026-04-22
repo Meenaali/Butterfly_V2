@@ -1,0 +1,115 @@
+# Butterfly
+
+Butterfly is a full-stack Western blot optimisation assistant. It is moving from a simple workflow tracker toward an evidence-weighted strategy tool that combines protein intelligence, antibody compatibility, experiment logging, and final image integrity review.
+
+## What It Does
+
+- Pulls protein intelligence from UniProt, AlphaFold DB, and EBI Proteins.
+- Predicts transfer, blocking, washing, antibody, and ECL strategy.
+- Checks primary/secondary antibody compatibility from product URLs or manual host/isotype/conjugate fields.
+- Logs experiment runs so repeat experiments can inform future recommendations.
+- Screens final blot images for saturation, background, asymmetry, and integrity risks.
+
+## Stack
+
+- Frontend: React served as static assets from FastAPI
+- Backend: FastAPI
+- Image analysis: Pillow + NumPy
+- Persistence: SQLite for demo/local history
+
+## Run Locally
+
+```bash
+python run.py
+```
+
+Then open:
+
+```txt
+http://127.0.0.1:8000
+```
+
+If your system Python is unavailable, use the bundled Codex runtime:
+
+```bash
+/Users/meenaali/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 run.py
+```
+
+Or use the launcher:
+
+```bash
+./start_butterfly.sh
+```
+
+The local demo is password protected. Unless you set your own password, use:
+
+```txt
+butterfly-demo
+```
+
+To choose a different local password:
+
+```bash
+BUTTERFLY_PASSWORD="your-private-password" python run.py
+```
+
+## Deploy On Render
+
+1. Push this folder to a GitHub repository.
+2. Create a Render account.
+3. Click `New` then `Blueprint`.
+4. Connect the GitHub repository.
+5. Render will read [render.yaml](/Users/meenaali/Documents/Codex/2026-04-18-i-am-trying-to-build-an/render.yaml).
+6. Deploy the service.
+
+Before sharing the Render link, add these Render environment variables:
+
+- `BUTTERFLY_PASSWORD`: the private password people must enter to open Butterfly.
+- `BUTTERFLY_SECRET`: a long random phrase used to sign login cookies.
+- `BUTTERFLY_COOKIE_SECURE`: set to `true` on Render so the login cookie is HTTPS-only.
+
+Render will run:
+
+```bash
+pip install -r requirements.txt
+python run.py
+```
+
+The app uses the hosting provider's `PORT` environment variable automatically.
+
+## Manual Render Setup
+
+If you create a Render `Web Service` manually:
+
+- Runtime: `Python`
+- Build command: `pip install -r requirements.txt`
+- Start command: `python run.py`
+- Python version: `3.12.7`
+
+## API Endpoints
+
+- `GET /api/health`
+- `POST /api/protein-intelligence`
+- `POST /api/antibody-compatibility`
+- `POST /api/analyze`
+- `POST /api/recommendations`
+- `GET /api/experiments`
+- `GET /api/experiments/{id}`
+- `POST /api/experiments`
+- `PUT /api/experiments/{id}`
+
+## Demo Limitations
+
+- SQLite history is fine for a demo but not ideal for production persistence.
+- Uploaded images are analysed in memory and not permanently stored.
+- Vendor product pages may block scraping or change their layout.
+- Recommendations are heuristic and should be treated as decision support, not validated scientific instructions.
+
+## Best Production Upgrades
+
+1. Replace SQLite with Postgres.
+2. Add user login and experiment ownership.
+3. Store uploaded images in object storage.
+4. Add PubMed / Europe PMC protocol extraction.
+5. Add a curated antibody compatibility database.
+6. Add lane-aware band quantification.
