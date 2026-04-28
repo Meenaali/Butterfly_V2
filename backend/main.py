@@ -10,15 +10,20 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Response
+from fastapi import File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .analysis import analyze_image_bytes
+from .ai_interpretation import interpret_blot_image
 from .antibody_compatibility import check_antibody_compatibility
 from .database import create_experiment, get_experiment, init_db, list_experiments, update_experiment
+from .documents import delete_document, index_status, rebuild_document_index, save_uploaded_document
+from .protein_first_planner import generate_protein_first_plan
 from .protein_intelligence import build_protein_intelligence
+from .rag_assistant import ask_butterfly
 from .recommendations import (
     RecommendationResult,
     antibody_recommendations,
@@ -54,6 +59,9 @@ class ExperimentPayload(BaseModel):
     recommendations: dict[str, Any] = Field(default_factory=dict)
     protein_intelligence: dict[str, Any] = Field(default_factory=dict)
     antibody_compatibility: dict[str, Any] = Field(default_factory=dict)
+    ai_interpretations: dict[str, Any] = Field(default_factory=dict)
+    protein_first_plan: dict[str, Any] = Field(default_factory=dict)
+    troubleshooting_plan: dict[str, Any] = Field(default_factory=dict)
 
 
 class AnalyzeRequest(BaseModel):
@@ -89,8 +97,35 @@ class TroubleshootingRequest(BaseModel):
     antibody_compatibility: dict[str, Any] = Field(default_factory=dict)
 
 
+class AIInterpretRequest(BaseModel):
+    stage: str = Field(pattern="^(gel|transfer|final)$")
+    image_base64: str
+    analysis: dict[str, Any] = Field(default_factory=dict)
+    experiment: dict[str, Any] = Field(default_factory=dict)
+    protein_intelligence: dict[str, Any] = Field(default_factory=dict)
+    antibody_compatibility: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=3)
+    experiment: dict[str, Any] = Field(default_factory=dict)
+    analyses: dict[str, Any] = Field(default_factory=dict)
+    protein_intelligence: dict[str, Any] = Field(default_factory=dict)
+    antibody_compatibility: dict[str, Any] = Field(default_factory=dict)
+
+
 class LoginRequest(BaseModel):
     password: str
+
+
+class ProteinFirstPlanRequest(BaseModel):
+    experiment: dict[str, Any] = Field(default_factory=dict)
+    protein_intelligence: dict[str, Any] = Field(default_factory=dict)
+    antibody_compatibility: dict[str, Any] = Field(default_factory=dict)
+
+
+class DocumentDeleteRequest(BaseModel):
+    filename: str = Field(min_length=1)
 
 
 def _sign_session(expires_at: int) -> str:
@@ -212,6 +247,8 @@ def protein_intelligence(request: ProteinIntelligenceRequest) -> dict[str, Any]:
         "alphafold": result.alphafold,
         "ebi_features": result.ebi_features,
         "chemistry": result.chemistry,
+        "buffer_compatibility": result.buffer_compatibility,
+        "band_risks": result.band_risks,
         "predictions": result.predictions,
         "buffer_recommendations": result.buffer_recommendations,
         "caveats": result.caveats,
@@ -240,7 +277,67 @@ def troubleshooting(request: TroubleshootingRequest) -> dict[str, Any]:
         "immediate_fixes": result.immediate_fixes,
         "next_run_plan": result.next_run_plan,
         "evidence_tools": result.evidence_tools,
+        "supporting_material": result.supporting_material,
     }
+
+
+@app.post("/api/ai-interpret", dependencies=[Depends(require_auth)])
+def ai_interpret(request: AIInterpretRequest) -> dict[str, Any]:
+    return interpret_blot_image(
+        stage=request.stage,
+        image_base64=request.image_base64,
+        analysis=request.analysis,
+        experiment=request.experiment,
+        protein_intelligence=request.protein_intelligence,
+        antibody_compatibility=request.antibody_compatibility,
+    )
+
+
+@app.post("/api/chat", dependencies=[Depends(require_auth)])
+def chat(request: ChatRequest) -> dict[str, Any]:
+    return ask_butterfly(
+        question=request.question,
+        experiment=request.experiment,
+        analyses=request.analyses,
+        protein_intelligence=request.protein_intelligence,
+        antibody_compatibility=request.antibody_compatibility,
+    )
+
+
+@app.post("/api/protein-first-plan", dependencies=[Depends(require_auth)])
+def protein_first_plan(request: ProteinFirstPlanRequest) -> dict[str, Any]:
+    return generate_protein_first_plan(
+        experiment=request.experiment,
+        protein_intelligence=request.protein_intelligence,
+        antibody_compatibility=request.antibody_compatibility,
+    )
+
+
+@app.get("/api/index-status", dependencies=[Depends(require_auth)])
+def get_index_status() -> dict[str, Any]:
+    return index_status()
+
+
+@app.post("/api/index-documents", dependencies=[Depends(require_auth)])
+async def index_documents(files: list[UploadFile] = File(...)) -> dict[str, Any]:
+    results = []
+    for upload in files:
+        content = await upload.read()
+        results.append(save_uploaded_document(upload.filename or "document.txt", content))
+    return {
+        "indexed": results,
+        "status": index_status(),
+    }
+
+
+@app.post("/api/delete-document", dependencies=[Depends(require_auth)])
+def remove_document(request: DocumentDeleteRequest) -> dict[str, Any]:
+    return {"status": delete_document(request.filename)}
+
+
+@app.post("/api/rebuild-index", dependencies=[Depends(require_auth)])
+def rebuild_index() -> dict[str, Any]:
+    return {"status": rebuild_document_index()}
 
 
 @app.get("/api/experiments", dependencies=[Depends(require_auth)])
@@ -272,6 +369,9 @@ def save_experiment(payload: ExperimentPayload) -> dict[str, Any]:
             "recommendations": recommendation_payload,
             "protein_intelligence": payload.protein_intelligence,
             "antibody_compatibility": payload.antibody_compatibility,
+            "ai_interpretations": payload.ai_interpretations,
+            "protein_first_plan": payload.protein_first_plan,
+            "troubleshooting_plan": payload.troubleshooting_plan,
         },
     )
     return saved
@@ -293,6 +393,9 @@ def update_saved_experiment(experiment_id: int, payload: ExperimentPayload) -> d
             "recommendations": recommendation_payload,
             "protein_intelligence": payload.protein_intelligence,
             "antibody_compatibility": payload.antibody_compatibility,
+            "ai_interpretations": payload.ai_interpretations,
+            "protein_first_plan": payload.protein_first_plan,
+            "troubleshooting_plan": payload.troubleshooting_plan,
         },
     )
     return updated

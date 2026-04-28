@@ -69,6 +69,11 @@ label {
   color: var(--muted);
 }
 
+.panel-copy {
+  margin-top: 0.35rem;
+  line-height: 1.55;
+}
+
 .eyebrow {
   margin: 0 0 0.8rem;
   text-transform: uppercase;
@@ -262,7 +267,7 @@ h1 {
   display: flex;
   align-items: flex-start;
   gap: 0.85rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.35rem;
 }
 
 .grid,
@@ -280,7 +285,7 @@ h1 {
 
 .stage-one-layout {
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 
@@ -291,6 +296,41 @@ h1 {
   gap: 0.8rem;
 }
 
+.experiment-log-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.predictive-workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+
+.predictive-workflow-card {
+  align-content: start;
+}
+
+.predictive-workflow-card strong {
+  display: block;
+  margin: 0.2rem 0 0.65rem;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.experiment-log-column {
+  align-content: start;
+}
+
+.experiment-log-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
 .metric-grid,
 .recommendation-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -299,6 +339,10 @@ h1 {
 .entry-card-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
+}
+
+.antibody-split-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .field-group {
@@ -364,6 +408,22 @@ button {
   font: inherit;
 }
 
+input[type="file"] {
+  width: 100%;
+  overflow: hidden;
+  padding: 0.65rem 0.75rem;
+}
+
+input[type="file"]::file-selector-button {
+  margin-right: 0.75rem;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  background: rgba(45, 138, 95, 0.08);
+  color: var(--accent);
+  cursor: pointer;
+}
+
 input,
 select,
 textarea {
@@ -395,6 +455,26 @@ textarea:focus {
   flex-wrap: wrap;
   gap: 0.8rem;
   margin-top: 1rem;
+}
+
+.strategy-action-stack {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.strategy-button-row {
+  margin-top: 0;
+}
+
+.strategy-status {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.strategy-intro-card {
+  margin-top: 0;
 }
 
 .button {
@@ -451,6 +531,18 @@ textarea:focus {
 
 .preview-mini {
   max-height: 180px;
+}
+
+.optional-evidence-grid-wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.optional-evidence-grid-compact {
+  grid-template-columns: 1fr;
+}
+
+.optional-evidence-grid-compact .upload-card {
+  min-height: 100%;
 }
 
 .metric-value {
@@ -517,8 +609,56 @@ textarea:focus {
   line-height: 1.6;
 }
 
+.protein-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.evidence-card {
+  min-height: 100%;
+}
+
+.evidence-card strong {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.evidence-card-wide {
+  grid-column: span 2;
+}
+
 .comparison-card-wide {
   grid-column: span 2;
+}
+
+.field-group-full {
+  width: 100%;
+}
+
+.field-group-full textarea {
+  min-height: 160px;
+}
+
+.field-group-notes textarea {
+  min-height: 380px;
+}
+
+.field-group-evidence .field-group-grid {
+  grid-template-columns: 1fr;
+}
+
+.field-group-evidence .upload-card {
+  min-height: 240px;
+}
+
+.field-group-evidence input[type="file"] {
+  font-size: 0.86rem;
+}
+
+.field-group-evidence label {
+  width: 100%;
 }
 
 .grid-span-2 {
@@ -528,6 +668,46 @@ textarea:focus {
 .history-stack {
   display: grid;
   gap: 0.9rem;
+}
+
+.virtual-assistant-stack {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.assistant-upload-card,
+.assistant-context-card,
+.assistant-input-grid,
+.assistant-comparison-grid {
+  margin: 0;
+}
+
+.assistant-button-row {
+  margin-top: 0;
+}
+
+.chat-stack {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.chat-user {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.chat-assistant {
+  background: rgba(217, 236, 223, 0.98);
+}
+
+.compact-doc {
+  padding: 0.8rem;
+}
+
+.ai-card ul,
+.chat-assistant ul {
+  margin: 0.7rem 0 0;
+  padding-left: 1rem;
+  line-height: 1.6;
 }
 
 .tag-row {
@@ -545,15 +725,124 @@ textarea:focus {
   font-size: 0.74rem;
 }
 
+.guided-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 1rem 0;
+}
+
+.guided-steps-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.guided-step-card {
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  padding: 0.95rem 1rem;
+  background: rgba(244, 251, 246, 0.86);
+}
+
+.guided-step-card strong {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.guided-step-card .status {
+  margin: 0.35rem 0 0;
+  line-height: 1.5;
+}
+
+.flow-chart {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.flow-chart-compact {
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+.flow-chart-compact .flow-node {
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0.5rem 0.65rem;
+}
+
+.flow-chart-compact .flow-node-index {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  line-height: 1.1;
+}
+
+.flow-chart-compact .flow-node-text {
+  font-size: 0.75rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.flow-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0.62rem 0.78rem;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: rgba(244, 251, 246, 0.88);
+  max-width: 100%;
+}
+
+.flow-node-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: rgba(45, 138, 95, 0.12);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.flow-node-text {
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.flow-arrow {
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 @media (max-width: 1180px) {
   .hero,
   .layout,
   .hero-grid,
   .timeline,
   .stage-one-layout,
+  .guided-steps,
+  .flow-chart,
+  .experiment-log-columns,
+  .experiment-log-bottom,
   .entry-card-grid,
   .field-group-grid,
   .optional-evidence-grid,
+  .optional-evidence-grid-wide,
+  .optional-evidence-grid-compact,
+  .predictive-workflow-grid,
   .comparison-grid,
   .grid,
   .metric-grid,
@@ -567,5 +856,9 @@ textarea:focus {
 
   .comparison-card-wide {
     grid-column: span 1;
+  }
+
+  .flow-arrow {
+    display: none;
   }
 }

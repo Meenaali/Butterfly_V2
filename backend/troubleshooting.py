@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .rag_assistant import retrieve_supporting_chunks
+
 
 @dataclass
 class TroubleshootingResult:
@@ -13,6 +15,7 @@ class TroubleshootingResult:
     immediate_fixes: list[str]
     next_run_plan: list[str]
     evidence_tools: list[dict[str, str]]
+    supporting_material: list[dict[str, str]]
 
 
 def _normalise_symptom(value: str | None) -> str:
@@ -83,6 +86,11 @@ def build_troubleshooting_plan(
     gel_analysis = image_analyses.get("gel") or {}
     transfer_analysis = image_analyses.get("transfer") or {}
     final_analysis = image_analyses.get("final") or {}
+    supporting_material = retrieve_supporting_chunks(
+        question=f"{selected} western blot troubleshooting support",
+        experiment=experiment,
+        protein_intelligence=protein_intelligence or {},
+    )
 
     likely_causes: list[str] = []
     decision_tree: list[str] = []
@@ -309,4 +317,8 @@ def build_troubleshooting_plan(
         immediate_fixes=immediate_fixes[:10],
         next_run_plan=next_run_plan[:10],
         evidence_tools=_evidence_tools(experiment),
+        supporting_material=[
+            {"title": chunk.get("title", "Supporting material"), "text": chunk.get("text", "")}
+            for chunk in supporting_material[:4]
+        ],
     )

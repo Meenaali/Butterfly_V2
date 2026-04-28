@@ -9,6 +9,7 @@
     uniprot_id: "",
     protein_sequence: "",
     organism_name: "",
+    expression_system: "",
     protein_size_kda: "",
     protein_load_ug: "",
     target_abundance_class: "moderate",
@@ -61,16 +62,26 @@
     const [experiment, setExperiment] = useState(defaultExperiment);
     const [analyses, setAnalyses] = useState({});
     const [recommendations, setRecommendations] = useState({});
+    const [proteinFirstPlan, setProteinFirstPlan] = useState(null);
     const [proteinIntelligence, setProteinIntelligence] = useState(null);
     const [antibodyCompatibility, setAntibodyCompatibility] = useState(null);
+    const [aiInterpretations, setAiInterpretations] = useState({});
     const [troubleshootingPlan, setTroubleshootingPlan] = useState(null);
     const [history, setHistory] = useState([]);
+    const [chatMessages, setChatMessages] = useState([]);
+    const [chatQuestion, setChatQuestion] = useState("");
+    const [docStatus, setDocStatus] = useState({ document_count: 0, chunk_count: 0, documents: [] });
     const [selectedId, setSelectedId] = useState(null);
-    const [status, setStatus] = useState("Butterfly is ready to propose the next blot strategy.");
+    const [status, setStatus] = useState("Butterfly is ready to propose a protein-led blotting strategy.");
     const [previews, setPreviews] = useState({});
     const [proteinIntelLoading, setProteinIntelLoading] = useState(false);
     const [antibodyCompatibilityLoading, setAntibodyCompatibilityLoading] = useState(false);
     const [troubleshootingLoading, setTroubleshootingLoading] = useState(false);
+    const [aiLoadingStage, setAiLoadingStage] = useState(null);
+    const [chatLoading, setChatLoading] = useState(false);
+    const [docUploadLoading, setDocUploadLoading] = useState(false);
+    const [docActionLoading, setDocActionLoading] = useState(false);
+    const [proteinFirstLoading, setProteinFirstLoading] = useState(false);
 
     useEffect(() => {
       checkAuth();
@@ -79,6 +90,7 @@
     useEffect(() => {
       if (authenticated) {
         fetchHistory();
+        fetchIndexStatus();
       }
     }, [authenticated]);
 
@@ -112,6 +124,8 @@
       await fetch("/api/auth/logout", { method: "POST" });
       setAuthenticated(false);
       setHistory([]);
+      setChatMessages([]);
+      setDocStatus({ document_count: 0, chunk_count: 0, documents: [] });
       setStatus("Logged out of Butterfly.");
     }
 
@@ -119,6 +133,13 @@
       const response = await fetch("/api/experiments");
       const items = await response.json();
       setHistory(items);
+    }
+
+    async function fetchIndexStatus() {
+      const response = await fetch("/api/index-status");
+      if (!response.ok) return;
+      const payload = await response.json();
+      setDocStatus(payload);
     }
 
     function updateField(field, value) {
@@ -172,7 +193,7 @@
 
       if (!response.ok) {
         setStatus("Protein intelligence lookup failed.");
-        return;
+        return null;
       }
 
       const payload = await response.json();
@@ -186,6 +207,66 @@
             : String(Math.round(payload.chemistry.molecular_weight_kda)),
       }));
       setStatus("Protein intelligence updated.");
+      return payload;
+    }
+
+    async function generateProteinFirstPlan() {
+      setProteinFirstLoading(true);
+      setStatus("Building a predictive model from the target protein...");
+      const intel = proteinIntelligence || await fetchProteinIntelligence();
+      if (!intel) {
+        setProteinFirstLoading(false);
+        return;
+      }
+
+      const nextExperiment = buildProteinFirstExperiment(experiment, intel);
+      setExperiment(nextExperiment);
+
+      const planResponse = await fetch("/api/protein-first-plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          experiment: nextExperiment,
+          protein_intelligence: intel,
+          antibody_compatibility: antibodyCompatibility || {},
+        }),
+      });
+
+      if (!planResponse.ok) {
+        let detail = "Could not build the predictive model.";
+        try {
+          const errorPayload = await planResponse.json();
+          detail = errorPayload.detail || detail;
+        } catch (error) {
+          detail = "Could not build the predictive model.";
+        }
+        setProteinFirstLoading(false);
+        setStatus(detail);
+        return;
+      }
+
+      const planPayload = await planResponse.json();
+      setProteinFirstPlan(planPayload);
+
+      const response = await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: nextExperiment.title || "Untitled Butterfly experiment",
+          experiment: nextExperiment,
+          analyses,
+        }),
+      });
+      setProteinFirstLoading(false);
+
+      if (!response.ok) {
+        setStatus("The predictive model loaded, but the secondary strategy cards could not be generated.");
+        return;
+      }
+
+      const payload = await response.json();
+      setRecommendations(payload);
+      setStatus("Predictive model ready. Butterfly generated a protein-led blotting model from the protein evidence.");
     }
 
     async function generateRecommendations() {
@@ -267,6 +348,123 @@
       setStatus(`Troubleshooting plan ready for ${payload.symptom}.`);
     }
 
+    async function generateAIInterpretation(stage) {
+      const preview = previews[stage];
+      if (!preview) {
+        setStatus(`Upload a ${stage} image first.`);
+        return;
+      }
+
+      setAiLoadingStage(stage);
+      setStatus(`Running AI interpretation for the ${stage} image...`);
+      const response = await fetch("/api/ai-interpret", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage,
+          image_base64: preview.split(",")[1],
+          analysis: analyses[stage] || {},
+          experiment,
+          protein_intelligence: proteinIntelligence || {},
+          antibody_compatibility: antibodyCompatibility || {},
+        }),
+      });
+      setAiLoadingStage(null);
+
+      if (!response.ok) {
+        setStatus(`AI interpretation failed for the ${stage} image.`);
+        return;
+      }
+
+      const payload = await response.json();
+      setAiInterpretations((current) => ({ ...current, [stage]: payload }));
+      setStatus(`AI interpretation ready for the ${stage} image.`);
+    }
+
+    async function askButterfly() {
+      if (!chatQuestion.trim()) return;
+      const question = chatQuestion.trim();
+      setChatLoading(true);
+      setStatus("Ask Butterfly is retrieving grounded troubleshooting guidance...");
+      setChatMessages((current) => [...current, { role: "user", text: question }]);
+      setChatQuestion("");
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          experiment,
+          analyses,
+          protein_intelligence: proteinIntelligence || {},
+          antibody_compatibility: antibodyCompatibility || {},
+        }),
+      });
+      setChatLoading(false);
+
+      if (!response.ok) {
+        setChatMessages((current) => [...current, { role: "assistant", text: "Butterfly could not answer that question right now." }]);
+        setStatus("Ask Butterfly failed.");
+        return;
+      }
+
+      const payload = await response.json();
+      setChatMessages((current) => [...current, { role: "assistant", text: payload.answer, citations: payload.citations || [], mode: payload.mode }]);
+      setStatus("Ask Butterfly response ready.");
+    }
+
+    async function uploadDocuments(fileList) {
+      if (!fileList || !fileList.length) return;
+      setDocUploadLoading(true);
+      setStatus("Indexing uploaded documents for the virtual assistant...");
+      const formData = new FormData();
+      Array.from(fileList).forEach((file) => formData.append("files", file));
+      const response = await fetch("/api/index-documents", {
+        method: "POST",
+        body: formData,
+      });
+      setDocUploadLoading(false);
+      if (!response.ok) {
+        setStatus("Document indexing failed.");
+        return;
+      }
+      const payload = await response.json();
+      setDocStatus(payload.status);
+      setStatus(`Indexed ${payload.indexed.length} document(s) for the virtual assistant.`);
+    }
+
+    async function deleteIndexedDocument(filename) {
+      setDocActionLoading(true);
+      setStatus(`Removing ${filename} from Ask Butterfly...`);
+      const response = await fetch("/api/delete-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename }),
+      });
+      setDocActionLoading(false);
+      if (!response.ok) {
+        setStatus("Document removal failed.");
+        return;
+      }
+      const payload = await response.json();
+      setDocStatus(payload.status);
+      setStatus(`Removed ${filename} from Ask Butterfly.`);
+    }
+
+    async function rebuildIndex() {
+      setDocActionLoading(true);
+      setStatus("Rebuilding Ask Butterfly index...");
+      const response = await fetch("/api/rebuild-index", { method: "POST" });
+      setDocActionLoading(false);
+      if (!response.ok) {
+        setStatus("Index rebuild failed.");
+        return;
+      }
+      const payload = await response.json();
+      setDocStatus(payload.status);
+      setStatus("Ask Butterfly index rebuilt.");
+    }
+
     async function saveExperiment() {
       setStatus(selectedId ? "Updating experiment..." : "Saving experiment...");
       const method = selectedId ? "PUT" : "POST";
@@ -279,8 +477,10 @@
           experiment,
           analyses,
           recommendations,
+          protein_first_plan: proteinFirstPlan || {},
           protein_intelligence: proteinIntelligence || {},
           antibody_compatibility: antibodyCompatibility || {},
+          ai_interpretations: aiInterpretations || {},
           troubleshooting_plan: troubleshootingPlan || {},
         }),
       });
@@ -303,9 +503,12 @@
       setExperiment({ ...defaultExperiment, ...payload.payload.experiment });
       setAnalyses(payload.payload.analyses || {});
       setRecommendations(payload.payload.recommendations || {});
+      setProteinFirstPlan(payload.payload.protein_first_plan || null);
       setProteinIntelligence(payload.payload.protein_intelligence || null);
       setAntibodyCompatibility(payload.payload.antibody_compatibility || null);
+      setAiInterpretations(payload.payload.ai_interpretations || {});
       setTroubleshootingPlan(payload.payload.troubleshooting_plan || null);
+      setChatMessages([]);
       setStatus(`Loaded experiment #${payload.id}.`);
     }
 
@@ -314,9 +517,12 @@
       setExperiment(defaultExperiment);
       setAnalyses({});
       setRecommendations({});
+      setProteinFirstPlan(null);
       setProteinIntelligence(null);
       setAntibodyCompatibility(null);
+      setAiInterpretations({});
       setTroubleshootingPlan(null);
+      setChatMessages([]);
       setPreviews({});
       setStatus("Started a fresh Butterfly experiment.");
     }
@@ -337,18 +543,23 @@
             updateField,
             proteinIntelligence,
             onFetchProteinIntelligence: fetchProteinIntelligence,
+            onGenerateProteinFirstPlan: generateProteinFirstPlan,
             proteinIntelLoading,
+            proteinFirstLoading,
           }),
           h(PredictedStrategySection, {
             number: "02",
+            experiment,
             strategyReady,
             recommendations,
+            proteinFirstPlan,
             proteinIntelligence,
-            onGenerate: generateRecommendations,
+            onGenerate: generateProteinFirstPlan,
             onSave: saveExperiment,
             onReset: startNew,
             selectedId,
             status,
+            proteinFirstLoading,
           }),
           h(AntibodyCompatibilitySection, {
             number: "03",
@@ -365,26 +576,40 @@
             analyses,
             previews,
             onUpload: analyseStage,
+            onAIInterpret: generateAIInterpretation,
+            aiInterpretations,
+            aiLoadingStage,
           }),
-          h(TroubleshootingSection, {
-            number: "05",
-            experiment,
-            updateField,
-            analyses,
-            troubleshootingPlan,
-            onGenerate: generateTroubleshootingPlan,
-            loading: troubleshootingLoading,
-          }),
-          h(RunComparisonSection, { number: "06", comparison }),
           h(FinalIntegritySection, {
-            number: "07",
+            number: "05",
             finalAnalysis: analyses.final,
             preview: previews.final,
             integrity: recommendations.integrity,
             onUpload: analyseStage,
+            onAIInterpret: generateAIInterpretation,
+            aiInterpretation: aiInterpretations.final,
+            aiLoadingStage,
+          }),
+          h(VirtualAssistantSection, {
+            number: "06",
+            experiment,
+            updateField,
+            analyses,
+            comparison,
+            troubleshootingPlan,
+            onGenerate: generateTroubleshootingPlan,
+            loading: troubleshootingLoading,
+            docStatus,
+            onUploadDocuments: uploadDocuments,
+            docUploadLoading,
           })
         ),
-        h(HistoryPanel, { number: "08", history, selectedId, onLoad: loadExperiment })
+        h(SidebarPanel, {
+          number: "08",
+          history,
+          selectedId,
+          onLoad: loadExperiment,
+        })
       )
     );
   }
@@ -461,97 +686,101 @@
     );
   }
 
-  function ProteinIntelligenceSection({ number, experiment, updateField, proteinIntelligence, onFetchProteinIntelligence, proteinIntelLoading }) {
+  function ProteinIntelligenceSection({ number, experiment, updateField, proteinIntelligence, onFetchProteinIntelligence, onGenerateProteinFirstPlan, proteinIntelLoading, proteinFirstLoading }) {
     return h(
       SectionCard,
       {
         number,
         title: "Protein Intelligence",
         subtitle:
-          "Acquire and predict from a UniProt ID and/or FASTA protein sequence, integrating UniProt, AlphaFold, EMBL-EBI, PDB context, and sequence chemistry before setting the blot strategy.",
+          "Start here. Input a UniProt ID and/or FASTA sequence, then review the protein evidence before moving to the predictive model stage.",
       },
       h(
         "div",
         { className: "stage-one-layout" },
         h(
           "div",
-          { className: "intel-card" },
-          h("p", { className: "tiny-label" }, "Sources"),
-          h("div", { className: "tag-row" }, tag("UniProt ID"), tag("FASTA sequence"), tag("AlphaFold"), tag("EMBL-EBI"), tag("PDB context"), tag("Protein chemistry")),
-          h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onFetchProteinIntelligence, disabled: proteinIntelLoading || !(experiment.uniprot_id || experiment.protein_name || experiment.protein_sequence) }, proteinIntelLoading ? "Loading protein intelligence..." : "Fetch / predict protein intelligence")),
-          proteinIntelligence ? h(ProteinIntelligencePane, { proteinIntelligence }) : h("div", { className: "empty-state" }, "Enter a UniProt ID, paste a FASTA/protein sequence, or use both. Butterfly will translate this into membrane retention, cleavage, aggregation, and buffer guidance.")
-        ),
-        h(
-          "div",
           { className: "plan-card" },
+          h(StageFlowChart, {
+            items: [
+              ["1", "Input protein"],
+              ["2", "Review intelligence"],
+              ["3", "Move to model"],
+            ],
+          }),
           h(
             "div",
             { className: "entry-card-grid" },
             h(
               FieldGroup,
-              { title: "Target Identity", copy: "Use whichever identifier the scientist has first. UniProt plus FASTA gives Butterfly the strongest starting context." },
+              { title: "Start Here", copy: "Add a UniProt ID, FASTA sequence, or both." },
               renderInput("Experiment title", experiment.title, (value) => updateField("title", value)),
-              renderInput("Target protein", experiment.protein_name, (value) => updateField("protein_name", value)),
+              renderInput("Target protein (optional)", experiment.protein_name, (value) => updateField("protein_name", value)),
               renderInput("UniProt ID (optional)", experiment.uniprot_id, (value) => updateField("uniprot_id", value)),
-              renderInput("Organism", experiment.organism_name, (value) => updateField("organism_name", value))
+              renderInput("Organism", experiment.organism_name, (value) => updateField("organism_name", value)),
+              renderInput("Expression system (optional)", experiment.expression_system, (value) => updateField("expression_system", value))
             ),
             h(
               FieldGroup,
-              { title: "Sequence Intelligence", copy: "Paste FASTA when you want hydrophobicity, cleavage, aggregation, and buffer predictions even without a UniProt match." },
+              { title: "FASTA Sequence", copy: "Paste sequence here if UniProt is unavailable or if you want sequence-led prediction." },
               renderTextAreaInput("FASTA / protein sequence (optional)", experiment.protein_sequence, (value) => updateField("protein_sequence", value), "Paste amino acid sequence or FASTA if UniProt is unavailable, incomplete, or you want sequence-specific prediction.")
-            ),
-            h(
-              FieldGroup,
-              { title: "Gel And Load Setup", copy: "These values shape abundance, transfer, blocking, and exposure recommendations." },
-              renderInput("Protein size (kDa)", experiment.protein_size_kda, (value) => updateField("protein_size_kda", value), "number"),
-              renderInput("Load per lane (ug)", experiment.protein_load_ug, (value) => updateField("protein_load_ug", value), "number"),
-              renderSelect("Target abundance", experiment.target_abundance_class, (value) => updateField("target_abundance_class", value), [["very low", "Very low"], ["low", "Low"], ["moderate", "Moderate"], ["high", "High"], ["very high", "Very high"]]),
-              renderInput("Lane count", experiment.lane_count, (value) => updateField("lane_count", value), "number"),
-              renderInput("Gel percentage", experiment.gel_percent, (value) => updateField("gel_percent", value), "number")
-            ),
-            h(
-              FieldGroup,
-              { title: "Blotting Preferences", copy: "Give Butterfly your available hardware and first-pass blocking preference." },
-              renderSelect("Membrane", experiment.membrane_type, (value) => updateField("membrane_type", value), [["pvdf", "PVDF"], ["nitrocellulose", "Nitrocellulose"]]),
-              renderSelect("Transfer mode", experiment.transfer_mode, (value) => updateField("transfer_mode", value), [["either", "Suggest one"], ["wet", "Wet"], ["semi-dry", "Semi-dry"]]),
-              renderSelect("Blocking reagent", experiment.blocking_reagent, (value) => updateField("blocking_reagent", value), [["milk", "5% milk"], ["bsa", "5% BSA"], ["casein", "Casein"], ["other", "Other"]])
             )
-          )
+          ),
+          h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onFetchProteinIntelligence, disabled: proteinIntelLoading || !(experiment.uniprot_id || experiment.protein_name || experiment.protein_sequence) }, proteinIntelLoading ? "Loading protein intelligence..." : "Fetch / predict protein intelligence"))
+        ),
+        h(
+          "div",
+          { className: "intel-card" },
+          h(StageFlowChart, {
+            compact: true,
+            items: [
+              ["UniProt", "Identity"],
+              ["AlphaFold", "Structure"],
+              ["EBI/PDB", "Features"],
+              ["AI", "WB plan"],
+            ],
+          }),
+          h("p", { className: "tiny-label" }, "Predictive protein intelligence"),
+          h("div", { className: "tag-row" }, tag("UniProt"), tag("FASTA"), tag("AlphaFold"), tag("EMBL-EBI"), tag("PDB context"), tag("Protein chemistry")),
+          proteinIntelligence ? h(ProteinIntelligencePane, { proteinIntelligence }) : h("div", { className: "empty-state" }, "Start by entering a UniProt ID, FASTA sequence, or both. Butterfly will then show predictive protein intelligence for you to review before moving to the predictive model.")
         )
       )
     );
   }
 
-  function PredictedStrategySection({ number, strategyReady, recommendations, proteinIntelligence, onGenerate, onSave, onReset, selectedId, status }) {
-    const strategyCards = [
-      ["transfer", "Transfer"],
-      ["blocking", "Blocking and washing"],
-      ["antibody", "Antibody and ECL"],
-    ];
+  function PredictedStrategySection({ number, experiment, strategyReady, recommendations, proteinFirstPlan, proteinIntelligence, onGenerate, onSave, onReset, selectedId, status, proteinFirstLoading }) {
     return h(
       SectionCard,
-      { number, title: "Predicted Best Strategy", subtitle: "Butterfly should recommend the best starting protocol before the user commits to a run." },
+      { number, title: "Predictive Strategy", subtitle: "This stage turns the protein characteristics into a first-pass Western blot strategy that the user can review before running anything." },
       h(
         "div",
-        { className: "button-row" },
-        h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: !strategyReady }, "Generate strategy"),
-        h("button", { className: "button button-secondary", type: "button", onClick: onSave, disabled: !Object.keys(recommendations).length }, selectedId ? "Update run" : "Save run"),
-        h("button", { className: "button button-ghost", type: "button", onClick: onReset }, "New run")
+        { className: "strategy-action-stack" },
+        h(
+          "div",
+          { className: "button-row strategy-button-row" },
+          h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: !strategyReady || proteinFirstLoading }, proteinFirstLoading ? "Building strategy..." : "Generate strategy"),
+          h("button", { className: "button button-secondary", type: "button", onClick: onSave, disabled: !Object.keys(recommendations).length }, selectedId ? "Update run" : "Save run"),
+          h("button", { className: "button button-ghost", type: "button", onClick: onReset }, "New run")
+        ),
+        h("div", { className: "status strategy-status" }, status),
+        h(
+          "div",
+          { className: "lookup-card strategy-intro-card" },
+          h("p", { className: "tiny-label" }, "What this section is doing"),
+          h("p", { className: "status" }, "Using UniProt, AlphaFold, EMBL-EBI feature data, and FASTA-derived chemistry from Section 1, Butterfly maps the protein evidence into one predictive Western blot strategy. The goal is to show, concisely, how size, pI, hydrophobicity, domain context, processing risk, and folding behaviour affect buffers, transfer, blocker choice, and the expected band region.")
+        )
       ),
-      h("div", { className: "status" }, status),
-      proteinIntelligence ? h(ChemistrySummaryCard, { proteinIntelligence }) : null,
-      recommendations.blocking ? h(SuggestedStepsCard, { recommendation: recommendations.blocking }) : null,
-      Object.keys(recommendations).length
-        ? h("div", { className: "recommendation-grid" }, strategyCards.map(([key, label]) => recommendations[key] ? h(RecommendationCard, { key, title: label, recommendation: recommendations[key] }) : null))
-        : h("div", { className: "empty-state" }, "Generate a strategy after loading protein intelligence or entering the core blot variables.")
+      proteinFirstPlan
+        ? h(ProteinFirstPlanCard, { plan: proteinFirstPlan, proteinIntelligence, recommendations, experiment })
+        : h("div", { className: "empty-state" }, "Review the protein evidence in Stage 01 first, then ask Butterfly to generate the predictive model.")
     );
   }
 
-  function ExperimentLogSection({ number, experiment, updateField, analyses, previews, onUpload }) {
+  function ExperimentLogSection({ number, experiment, updateField, analyses, previews, onUpload, onAIInterpret, aiInterpretations, aiLoadingStage }) {
     const blockingInsight = buildBlockingInsight(experiment);
     return h(
       SectionCard,
-      { number, title: "Experiment Log", subtitle: "Intermediate evidence is optional. Log what you actually did so Butterfly can learn what worked and what failed across repeat runs." },
+      { number, title: "Experiment Log", subtitle: "Intermediate evidence is optional. Log what you actually did so Butterfly can compare repeat runs, track what worked, and suggest the next troubleshooting decision." },
       h(
         "div",
         { className: "lookup-card" },
@@ -561,47 +790,70 @@
       ),
       h(
         "div",
-        { className: "entry-card-grid" },
-        h(
-          FieldGroup,
-          { title: "Transfer And Wash", copy: "Record the physical conditions that most often explain uneven transfer, weak signal, or background." },
-          renderInput("Transfer time", experiment.transfer_time, (value) => updateField("transfer_time", value)),
-          renderInput("Transfer current / voltage", experiment.transfer_current, (value) => updateField("transfer_current", value)),
-          renderInput("Wash program", experiment.wash_program, (value) => updateField("wash_program", value)),
-          renderSelect("Blocking reagent used", experiment.blocking_reagent, (value) => updateField("blocking_reagent", value), [["milk", "Milk"], ["bsa", "BSA"], ["casein", "Casein"], ["other", "Other"]])
-        ),
-        h(
-          FieldGroup,
-          { title: "Detection Conditions", copy: "Keep antibody use and exposure together so repeat runs can learn what caused signal versus haze." },
-          renderSelect("Detection method", experiment.detection_method, (value) => updateField("detection_method", value), [["ECL", "ECL"], ["high-sensitivity ECL", "High-sensitivity ECL"], ["fluorescent", "Fluorescent"], ["other", "Other"]]),
-          renderInput("Primary dilution used", experiment.primary_dilution, (value) => updateField("primary_dilution", value)),
-          renderInput("Secondary dilution used", experiment.secondary_dilution, (value) => updateField("secondary_dilution", value)),
-          renderInput("Exposure time", experiment.exposure_time, (value) => updateField("exposure_time", value))
-        ),
-        h(
-          FieldGroup,
-          { title: "Outcome Score", copy: "Fast scoring lets Butterfly compare repeats without forcing long notes every time." },
-          renderSelect("Overall outcome", experiment.overall_outcome, (value) => updateField("overall_outcome", value), [["success", "Success"], ["mixed", "Mixed"], ["failed", "Failed"]]),
-          renderSelect("Signal", experiment.signal_rating, (value) => updateField("signal_rating", value), scoreOptions()),
-          renderSelect("Background", experiment.background_rating, (value) => updateField("background_rating", value), scoreOptions()),
-          renderSelect("Specificity", experiment.specificity_rating, (value) => updateField("specificity_rating", value), scoreOptions()),
-          renderSelect("Transfer quality", experiment.transfer_rating, (value) => updateField("transfer_rating", value), scoreOptions())
-        )
-      ),
-      h(
-        FieldGroup,
-        { title: "Image Evidence", copy: "Optional uploads make troubleshooting more adaptive by adding contrast, saturation, lane variation, and background metrics." },
+        { className: "experiment-log-columns" },
         h(
           "div",
-          { className: "optional-evidence-grid" },
-          h(ImagePanelMini, { title: "Optional gel image", stage: "gel", analysis: analyses.gel, preview: previews.gel, onUpload }),
-          h(ImagePanelMini, { title: "Optional transfer image", stage: "transfer", analysis: analyses.transfer, preview: previews.transfer, onUpload })
+          { className: "stack experiment-log-column" },
+          h(
+            FieldGroup,
+            { title: "Gel And Load Setup", copy: "After reviewing Butterfly's predicted strategy, record the practical gel and loading setup you actually choose for the run." },
+            renderInput("Protein size (kDa)", experiment.protein_size_kda, (value) => updateField("protein_size_kda", value), "number"),
+            renderInput("Load per lane (ug)", experiment.protein_load_ug, (value) => updateField("protein_load_ug", value), "number"),
+            renderSelect("Target abundance", experiment.target_abundance_class, (value) => updateField("target_abundance_class", value), [["very low", "Very low"], ["low", "Low"], ["moderate", "Moderate"], ["high", "High"], ["very high", "Very high"]]),
+            renderInput("Lane count", experiment.lane_count, (value) => updateField("lane_count", value), "number"),
+            renderInput("Gel percentage", experiment.gel_percent, (value) => updateField("gel_percent", value), "number")
+          ),
+          h(
+            FieldGroup,
+            { title: "Transfer And Wash", copy: "Record the physical conditions that most often explain uneven transfer, weak signal, or background." },
+            renderInput("Transfer time", experiment.transfer_time, (value) => updateField("transfer_time", value)),
+            renderInput("Transfer current / voltage", experiment.transfer_current, (value) => updateField("transfer_current", value)),
+            renderInput("Wash program", experiment.wash_program, (value) => updateField("wash_program", value)),
+            renderSelect("Detection method", experiment.detection_method, (value) => updateField("detection_method", value), [["ECL", "ECL"], ["high-sensitivity ECL", "High-sensitivity ECL"], ["fluorescent", "Fluorescent"], ["other", "Other"]])
+          ),
+          h(
+            FieldGroup,
+            { title: "Scientist Notes", copy: "Use this space for detailed run notes, observations, and anything the structured fields miss.", className: "field-group-full field-group-notes" },
+            h("label", null, "Run notes", h("textarea", { value: experiment.notes, onChange: (event) => updateField("notes", event.target.value), placeholder: "What changed, what improved, what failed, and what you would do next time." }))
+          )
+        ),
+        h(
+          "div",
+          { className: "stack experiment-log-column" },
+          h(
+            FieldGroup,
+            { title: "Blotting Preferences Used", copy: "Log the membrane, transfer approach, and blocker actually chosen for this run so Butterfly can learn from repeats." },
+            renderSelect("Membrane", experiment.membrane_type, (value) => updateField("membrane_type", value), [["pvdf", "PVDF"], ["nitrocellulose", "Nitrocellulose"]]),
+            renderSelect("Transfer mode", experiment.transfer_mode, (value) => updateField("transfer_mode", value), [["either", "Suggest one"], ["wet", "Wet"], ["semi-dry", "Semi-dry"]]),
+            renderSelect("Blocking reagent used", experiment.blocking_reagent, (value) => updateField("blocking_reagent", value), [["milk", "Milk"], ["bsa", "BSA"], ["casein", "Casein"], ["other", "Other"]])
+          ),
+          h(
+            FieldGroup,
+            { title: "Detection Conditions", copy: "Keep antibody use and exposure together so repeat runs can learn what caused signal versus haze." },
+            renderInput("Primary dilution used", experiment.primary_dilution, (value) => updateField("primary_dilution", value)),
+            renderInput("Secondary dilution used", experiment.secondary_dilution, (value) => updateField("secondary_dilution", value)),
+            renderInput("Exposure time", experiment.exposure_time, (value) => updateField("exposure_time", value))
+          ),
+          h(
+            FieldGroup,
+            { title: "Outcome Score", copy: "Fast scoring lets Butterfly compare repeats without forcing long notes every time." },
+            renderSelect("Overall outcome", experiment.overall_outcome, (value) => updateField("overall_outcome", value), [["success", "Success"], ["mixed", "Mixed"], ["failed", "Failed"]]),
+            renderSelect("Signal", experiment.signal_rating, (value) => updateField("signal_rating", value), scoreOptions()),
+            renderSelect("Background", experiment.background_rating, (value) => updateField("background_rating", value), scoreOptions()),
+            renderSelect("Specificity", experiment.specificity_rating, (value) => updateField("specificity_rating", value), scoreOptions()),
+            renderSelect("Transfer quality", experiment.transfer_rating, (value) => updateField("transfer_rating", value), scoreOptions())
+          ),
+          h(
+            FieldGroup,
+            { title: "Image Evidence", copy: "Optional uploads make troubleshooting more adaptive by adding contrast, saturation, lane variation, and background metrics.", className: "field-group-full field-group-evidence" },
+            h(
+              "div",
+              { className: "optional-evidence-grid optional-evidence-grid-compact" },
+              h(ImagePanelMini, { title: "Optional gel image", stage: "gel", analysis: analyses.gel, preview: previews.gel, onUpload, onAIInterpret, aiInterpretation: aiInterpretations.gel, aiLoadingStage }),
+              h(ImagePanelMini, { title: "Optional transfer image", stage: "transfer", analysis: analyses.transfer, preview: previews.transfer, onUpload, onAIInterpret, aiInterpretation: aiInterpretations.transfer, aiLoadingStage })
+            )
+          )
         )
-      ),
-      h(
-        FieldGroup,
-        { title: "Scientist Notes", copy: "Use this for anything the structured fields miss." },
-        h("label", null, "Run notes", h("textarea", { value: experiment.notes, onChange: (event) => updateField("notes", event.target.value), placeholder: "What changed, what improved, and what failed?" }))
       )
     );
   }
@@ -612,19 +864,27 @@
       { number, title: "Antibody Compatibility", subtitle: "Paste product URLs or use manual fields to score primary validation evidence, clone/manufacturing clues, and whether the secondary matches the primary host, isotype, conjugate, application, and ECL strategy." },
       h(
         "div",
-        { className: "grid" },
-        renderInput("Primary target", experiment.primary_target, (value) => updateField("primary_target", value)),
-        renderInput("Primary supplier", experiment.primary_company, (value) => updateField("primary_company", value)),
-        renderTextAreaInput("Primary antibody URL", experiment.primary_url, (value) => updateField("primary_url", value), "Example: Abcam primary antibody product page."),
-        renderTextAreaInput("Secondary antibody URL", experiment.secondary_url, (value) => updateField("secondary_url", value), "Example: Cytiva / Amersham HRP-linked secondary page."),
-        renderInput("Primary clone / catalog hint", experiment.primary_clone, (value) => updateField("primary_clone", value)),
-        renderSelect("Antibody type", experiment.primary_type, (value) => updateField("primary_type", value), [["total", "Total protein"], ["phospho", "Phospho-specific"], ["loading-control", "Loading control"], ["low-abundance", "Low abundance"]]),
-        renderSelect("Primary host species", experiment.primary_host, (value) => updateField("primary_host", value), [["rabbit", "Rabbit"], ["mouse", "Mouse"], ["goat", "Goat"], ["rat", "Rat"], ["other", "Other"]]),
-        renderInput("Primary isotype", experiment.primary_isotype, (value) => updateField("primary_isotype", value)),
-        renderSelect("Secondary target species", experiment.secondary_target_species, (value) => updateField("secondary_target_species", value), [["rabbit", "Anti-rabbit"], ["mouse", "Anti-mouse"], ["goat", "Anti-goat"], ["rat", "Anti-rat"], ["other", "Other"]]),
-        renderInput("Secondary isotype target", experiment.secondary_isotype, (value) => updateField("secondary_isotype", value)),
-        renderSelect("Secondary conjugate", experiment.secondary_conjugate, (value) => updateField("secondary_conjugate", value), [["HRP", "HRP"], ["AP", "AP"], ["fluorescent", "Fluorescent"], ["unknown", "Unknown"]]),
-        renderSelect("Detection", experiment.detection_method, (value) => updateField("detection_method", value), [["ECL", "ECL"], ["high-sensitivity ECL", "High-sensitivity ECL"], ["fluorescent", "Fluorescent"], ["other", "Other"]])
+        { className: "entry-card-grid antibody-split-grid" },
+        h(
+          FieldGroup,
+          { title: "Primary Antibody", copy: "Add the target antibody and its product page so Butterfly can extract host species, clone hints, Western blot use, and manufacturer validation evidence." },
+          renderInput("Primary target", experiment.primary_target, (value) => updateField("primary_target", value)),
+          renderInput("Primary supplier", experiment.primary_company, (value) => updateField("primary_company", value)),
+          renderInput("Primary clone / catalog hint", experiment.primary_clone, (value) => updateField("primary_clone", value)),
+          renderSelect("Antibody type", experiment.primary_type, (value) => updateField("primary_type", value), [["total", "Total protein"], ["phospho", "Phospho-specific"], ["loading-control", "Loading control"], ["low-abundance", "Low abundance"]]),
+          renderSelect("Primary host species", experiment.primary_host, (value) => updateField("primary_host", value), [["rabbit", "Rabbit"], ["mouse", "Mouse"], ["goat", "Goat"], ["rat", "Rat"], ["other", "Other"]]),
+          renderInput("Primary isotype", experiment.primary_isotype, (value) => updateField("primary_isotype", value)),
+          renderTextAreaInput("Primary antibody URL", experiment.primary_url, (value) => updateField("primary_url", value), "Example: Abcam primary antibody product page.")
+        ),
+        h(
+          FieldGroup,
+          { title: "Secondary Antibody", copy: "Add the secondary antibody page so Butterfly can assess whether it is the right anti-species, conjugate, and Western blot partner for the primary." },
+          renderSelect("Secondary target species", experiment.secondary_target_species, (value) => updateField("secondary_target_species", value), [["rabbit", "Anti-rabbit"], ["mouse", "Anti-mouse"], ["goat", "Anti-goat"], ["rat", "Anti-rat"], ["other", "Other"]]),
+          renderInput("Secondary isotype target", experiment.secondary_isotype, (value) => updateField("secondary_isotype", value)),
+          renderSelect("Secondary conjugate", experiment.secondary_conjugate, (value) => updateField("secondary_conjugate", value), [["HRP", "HRP"], ["AP", "AP"], ["fluorescent", "Fluorescent"], ["unknown", "Unknown"]]),
+          renderSelect("Detection", experiment.detection_method, (value) => updateField("detection_method", value), [["ECL", "ECL"], ["high-sensitivity ECL", "High-sensitivity ECL"], ["fluorescent", "Fluorescent"], ["other", "Other"]]),
+          renderTextAreaInput("Secondary antibody URL", experiment.secondary_url, (value) => updateField("secondary_url", value), "Example: Cytiva / Amersham HRP-linked secondary page.")
+        )
       ),
       h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onCheck, disabled: loading }, loading ? "Checking..." : "Check compatibility")),
       antibodyCompatibility ? h(AntibodyCompatibilityResult, { result: antibodyCompatibility }) : h("div", { className: "empty-state" }, "Compatibility result will appear here. If a vendor page blocks parsing, Butterfly will still use the manual host/isotype/conjugate fields.")
@@ -637,7 +897,9 @@
       { className: "recommendation-card comparison-card-wide" },
       h("h3", null, `Compatibility: ${result.status}`),
       h("div", { className: `score-pill ${result.score >= 0.75 ? "score-good" : result.score >= 0.5 ? "score-warn" : "score-bad"}` }, `Confidence ${Math.round(result.score * 100)}%`),
+      h("div", { className: `score-pill ${(result.url_match_score || 0) >= 0.75 ? "score-good" : (result.url_match_score || 0) >= 0.5 ? "score-warn" : "score-bad"}` }, `URL evidence match ${Math.round((result.url_match_score || 0) * 100)}%`),
       h("div", { className: `score-pill ${result.validation_score >= 0.72 ? "score-good" : result.validation_score >= 0.48 ? "score-warn" : "score-bad"}` }, `Primary validation ${Math.round((result.validation_score || 0) * 100)}% · ${result.validation_label || "limited"}`),
+      result.url_match_summary ? h("p", { className: "status" }, result.url_match_summary) : null,
       result.suggested_secondary
         ? h(
             "div",
@@ -662,40 +924,67 @@
     );
   }
 
-  function TroubleshootingSection({ number, experiment, updateField, analyses, troubleshootingPlan, onGenerate, loading }) {
+  function VirtualAssistantSection({ number, experiment, updateField, analyses, comparison, troubleshootingPlan, onGenerate, loading, docStatus, onUploadDocuments, docUploadLoading }) {
     const imageEvidence = buildImageEvidenceSummary(analyses);
     return h(
       SectionCard,
       {
         number,
-        title: "Virtual Troubleshooting",
+        title: "Virtual Assistant",
         subtitle:
-          "Select the blot problem after logging the run. Butterfly combines the experiment log, uploaded image analysis, protein chemistry, and antibody evidence into a decision tree.",
+          "Use the final stage for guided support. Butterfly combines the experiment log, uploaded image analysis, protein chemistry, saved runs, and uploaded supporting documents into practical troubleshooting support.",
       },
       h(
         "div",
-        { className: "lookup-card" },
-        h("p", { className: "tiny-label" }, "Image evidence feeding troubleshooting"),
-        h("strong", null, imageEvidence.title),
-        h("p", { className: "status" }, imageEvidence.copy)
-      ),
-      h(
+        { className: "virtual-assistant-stack" },
+        h(
         "div",
-        { className: "grid" },
-        renderSelect("Observed problem", experiment.troubleshooting_symptom, (value) => updateField("troubleshooting_symptom", value), [
-          ["high background", "High background"],
-          ["ghost bands", "Ghost bands"],
-          ["non-specific bands", "Non-specific bands"],
-          ["weak signal", "Weak signal"],
-          ["no signal", "No signal"],
-          ["smearing", "Smearing"],
-        ]),
-        renderSelect("Target abundance context", experiment.target_abundance_class, (value) => updateField("target_abundance_class", value), [["very low", "Very low"], ["low", "Low"], ["moderate", "Moderate"], ["high", "High"], ["very high", "Very high"]])
+        { className: "upload-card assistant-upload-card" },
+        h("label", null, "Upload supporting PDFs, TXT, or Markdown"),
+        h("input", { type: "file", accept: ".pdf,.txt,.md,text/plain,application/pdf,text/markdown", multiple: true, onChange: (event) => onUploadDocuments(event.target.files) }),
+        h("div", { className: "tiny-label" }, docUploadLoading ? "Uploading..." : "Upload protocols, datasheets, or troubleshooting notes if you want Butterfly to use your own supporting material.")
       ),
-      h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: loading }, loading ? "Generating decision tree..." : "Generate troubleshooting support")),
-      troubleshootingPlan
-        ? h(TroubleshootingResult, { plan: troubleshootingPlan })
-        : h("div", { className: "empty-state" }, "Upload optional gel, transfer, or final blot images in the Experiment Log first if you want Butterfly to use image metrics such as background spread, contrast, saturation, asymmetry, and lane variation.")
+        h(
+          "div",
+          { className: "lookup-card assistant-context-card" },
+          h("p", { className: "tiny-label" }, "What Butterfly is using"),
+          h("strong", null, imageEvidence.title),
+          h("p", { className: "status" }, imageEvidence.copy)
+        ),
+        h(
+          "div",
+          { className: "grid assistant-input-grid" },
+          renderSelect("Observed problem", experiment.troubleshooting_symptom, (value) => updateField("troubleshooting_symptom", value), [
+            ["high background", "High background"],
+            ["ghost bands", "Ghost bands"],
+            ["non-specific bands", "Non-specific bands"],
+            ["weak signal", "Weak signal"],
+            ["no signal", "No signal"],
+            ["smearing", "Smearing"],
+          ]),
+          renderSelect("Target abundance context", experiment.target_abundance_class, (value) => updateField("target_abundance_class", value), [["very low", "Very low"], ["low", "Low"], ["moderate", "Moderate"], ["high", "High"], ["very high", "Very high"]])
+        ),
+        h("div", { className: "button-row assistant-button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: loading }, loading ? "Building assistant support..." : "Generate assistant support")),
+        comparison
+          ? h(
+              "div",
+              { className: "comparison-grid assistant-comparison-grid" },
+              metricBlock("Similar runs", comparison.similarRuns),
+              metricBlock("Best prior membrane", comparison.bestMembrane),
+              metricBlock("Best prior blocker", comparison.bestBlocker),
+              metricBlock("Best prior transfer", comparison.bestTransfer),
+              h(
+                "div",
+                { className: "recommendation-card comparison-card-wide" },
+                h("h3", null, "What saved runs suggest"),
+                h("ul", null, comparison.insights.map((item, index) => h("li", { key: index }, item)))
+              )
+            )
+          : null,
+        troubleshootingPlan
+          ? h(TroubleshootingResult, { plan: troubleshootingPlan })
+          : h("div", { className: "empty-state" }, "Upload optional gel, transfer, or final blot images in the Experiment Log first if you want Butterfly to use image metrics such as background spread, contrast, saturation, asymmetry, and lane variation.")
+      )
     );
   }
 
@@ -713,6 +1002,25 @@
       h("ul", null, (plan.immediate_fixes || []).map((item, index) => h("li", { key: index }, item))),
       h("p", { className: "tiny-label" }, "Next-run mini DoE"),
       h("ul", null, (plan.next_run_plan || []).map((item, index) => h("li", { key: index }, item))),
+      plan.supporting_material?.length
+        ? h(
+            React.Fragment,
+            null,
+            h("p", { className: "tiny-label" }, "Supporting material used"),
+            h(
+              "div",
+              { className: "history-stack" },
+              plan.supporting_material.map((item, index) =>
+                h(
+                  "div",
+                  { className: "lookup-card", key: `${item.title}-${index}` },
+                  h("strong", null, item.title),
+                  h("p", { className: "status" }, item.text)
+                )
+              )
+            )
+          )
+        : null,
       h("p", { className: "tiny-label" }, "External evidence tools"),
       h(
         "div",
@@ -730,85 +1038,143 @@
     );
   }
 
-  function RunComparisonSection({ number, comparison }) {
+  function FinalIntegritySection({ number, finalAnalysis, preview, integrity, onUpload, onAIInterpret, aiInterpretation, aiLoadingStage }) {
     return h(
       SectionCard,
-      { number, title: "Run Comparison", subtitle: "Use previous runs as internal evidence. Butterfly should eventually turn these deltas into DoE-like next-step suggestions." },
-      comparison
-        ? h(
-            "div",
-            { className: "comparison-grid" },
-            metricBlock("Similar runs", comparison.similarRuns),
-            metricBlock("Best prior membrane", comparison.bestMembrane),
-            metricBlock("Best prior blocker", comparison.bestBlocker),
-            metricBlock("Best prior transfer", comparison.bestTransfer),
-            h(
-              "div",
-              { className: "recommendation-card comparison-card-wide" },
-              h("h3", null, "What history suggests"),
-              h("ul", null, comparison.insights.map((item, index) => h("li", { key: index }, item)))
-            )
-          )
-        : h("div", { className: "empty-state" }, "Save a few runs for the same or related protein and Butterfly can compare what changed and what improved.")
-    );
-  }
-
-  function FinalIntegritySection({ number, finalAnalysis, preview, integrity, onUpload }) {
-    return h(
-      SectionCard,
-      { number, title: "Final Image Integrity Review", subtitle: "The final blot image is the critical certification step before quantification, sharing, or interpretation." },
+      { number, title: "Final Image Integrity Review", subtitle: "The final blot image is the publication-readiness checkpoint. Butterfly screens for image integrity risks such as saturation, splice-like discontinuities, asymmetry, and manipulation warning signals." },
       h(
         "div",
         { className: "upload-card" },
         h("label", null, "Upload final blot image"),
         h("input", { type: "file", accept: "image/*", onChange: (event) => onUpload("final", event.target.files && event.target.files[0]) }),
-        preview ? h("img", { src: preview, className: "preview", alt: "Final blot preview" }) : null
+        preview ? h("img", { src: preview, className: "preview", alt: "Final blot preview" }) : null,
+        h("div", { className: "button-row" }, h("button", { className: "button button-secondary", type: "button", onClick: () => onAIInterpret("final"), disabled: !preview || aiLoadingStage === "final" }, aiLoadingStage === "final" ? "Screening image..." : "Run integrity screen"))
       ),
       finalAnalysis
         ? h("div", { className: "metric-grid" }, Object.keys(metricLabels).filter((key) => finalAnalysis[key] !== undefined).map((key) => h("div", { className: "metric-card", key }, h("p", { className: "metric-label" }, metricLabels[key]), h("p", { className: "metric-value" }, key.includes("pct") ? `${finalAnalysis[key]}%` : String(finalAnalysis[key])))))
         : h("div", { className: "empty-state" }, "Upload the final blot when you want Butterfly to run its integrity screen."),
+      aiInterpretation ? h(FinalIntegrityInterpretationCard, { interpretation: aiInterpretation }) : null,
       integrity ? h(RecommendationCard, { title: "Integrity review", recommendation: integrity }) : null
     );
   }
 
+  function FinalIntegrityInterpretationCard({ interpretation }) {
+    return h(
+      "div",
+      { className: "recommendation-card comparison-card-wide ai-card" },
+      h("p", { className: "tiny-label" }, `Image integrity screen${interpretation.source === "fallback" ? " · rules-based" : ""}`),
+      h("p", { className: "status" }, interpretation.summary),
+      interpretation.quality_flags?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Integrity flags"), h("ul", null, interpretation.quality_flags.map((item, index) => h("li", { key: index }, item)))) : null,
+      interpretation.band_interpretation?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Observed image patterns"), h("ul", null, interpretation.band_interpretation.map((item, index) => h("li", { key: index }, item)))) : null,
+      interpretation.next_steps?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "What to check before publication"), h("ul", null, interpretation.next_steps.map((item, index) => h("li", { key: index }, item)))) : null
+    );
+  }
+
   function ProteinIntelligencePane({ proteinIntelligence }) {
+    const identity = proteinIntelligence.uniprot || {};
+    const chemistry = proteinIntelligence.chemistry || {};
     const counts = proteinIntelligence.ebi_features?.counts || {};
     const examples = proteinIntelligence.ebi_features?.examples || [];
+    const bandRisks = proteinIntelligence.band_risks || [];
+    const featureTags = [
+      counts.TRANSMEM ? `TM ${counts.TRANSMEM}` : null,
+      chemistry.hydrophobic_domain_count !== undefined ? `Hydrophobic domains ${chemistry.hydrophobic_domain_count}` : null,
+      chemistry.longest_hydrophobic_run !== undefined ? `Longest hydrophobic run ${chemistry.longest_hydrophobic_run}` : null,
+      chemistry.cleavage_site_count !== undefined ? `Cleavage/processing ${chemistry.cleavage_site_count}` : null,
+      counts.SIGNAL ? `Signal ${counts.SIGNAL}` : null,
+      counts.DOMAIN ? `Domains ${counts.DOMAIN}` : null,
+      counts.DNA_BIND ? `DNA bind ${counts.DNA_BIND}` : null,
+    ].filter(Boolean);
+
+    const structureLines = [
+      proteinIntelligence.alphafold?.available ? `AlphaFold confidence: ${proteinIntelligence.alphafold.mean_plddt} (${proteinIntelligence.alphafold.confidence_label})` : "No AlphaFold prediction was resolved yet.",
+      chemistry.aggregation_risk ? `Folding / aggregation risk: ${chemistry.aggregation_risk}` : null,
+      chemistry.membrane_retention_risk ? `Membrane-association tendency: ${chemistry.membrane_retention_risk}` : null,
+    ].filter(Boolean);
+
+    const identityLines = [
+      identity.protein_name || "Unknown target",
+      identity.genes?.length ? `Gene: ${identity.genes.join(", ")}` : null,
+      identity.organism ? `Organism: ${identity.organism}` : null,
+      identity.reviewed ? `Reviewed status: ${identity.reviewed}` : null,
+    ].filter(Boolean);
+
     return h(
       "div",
       { className: "intel-results" },
-      h("div", { className: "metric-grid" }, metricBlock("Accession", proteinIntelligence.resolved_accession || "Not resolved"), metricBlock("Predicted pI", proteinIntelligence.chemistry?.theoretical_pI ?? "n/a"), metricBlock("MW (kDa)", proteinIntelligence.chemistry?.molecular_weight_kda ?? "n/a"), metricBlock("AlphaFold pLDDT", proteinIntelligence.alphafold?.mean_plddt ?? "n/a"), metricBlock("Membrane retention risk", proteinIntelligence.chemistry?.membrane_retention_risk ?? "n/a"), metricBlock("Aggregation risk", proteinIntelligence.chemistry?.aggregation_risk ?? "n/a")),
-      h("p", { className: "tiny-label" }, "Protein features"),
-      h("div", { className: "tag-row" }, tag(`TM ${counts.TRANSMEM || 0}`), tag(`Hydrophobic domains ${proteinIntelligence.chemistry?.hydrophobic_domain_count ?? 0}`), tag(`Longest hydrophobic run ${proteinIntelligence.chemistry?.longest_hydrophobic_run ?? 0}`), tag(`Cleavage/processing ${proteinIntelligence.chemistry?.cleavage_site_count ?? 0}`), tag(`Signal ${counts.SIGNAL || 0}`), tag(`Domains ${counts.DOMAIN || 0}`), tag(`DNA bind ${counts.DNA_BIND || 0}`)),
-      h("p", { className: "tiny-label" }, "Predictive interpretation"),
-      h("ul", null, (proteinIntelligence.predictions || []).map((item, index) => h("li", { key: index }, item))),
-      h("p", { className: "tiny-label" }, "Buffer and chemistry guidance"),
-      h("ul", null, (proteinIntelligence.buffer_recommendations || []).map((item, index) => h("li", { key: index }, item))),
-      examples.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Feature examples"), h("ul", null, examples.map((item, index) => h("li", { key: index }, `${item.type} ${item.begin || "?"}-${item.end || "?"} ${item.description || ""}`.trim())))) : null
+      h("div", { className: "metric-grid" }, metricBlock("Accession", proteinIntelligence.resolved_accession || "Not resolved"), metricBlock("Predicted pI", chemistry.theoretical_pI ?? "n/a"), metricBlock("MW (kDa)", chemistry.molecular_weight_kda ?? "n/a"), metricBlock("AlphaFold pLDDT", proteinIntelligence.alphafold?.mean_plddt ?? "n/a"), metricBlock("Membrane retention risk", chemistry.membrane_retention_risk ?? "n/a"), metricBlock("Aggregation risk", chemistry.aggregation_risk ?? "n/a")),
+      h(
+        "div",
+        { className: "protein-evidence-grid" },
+        h(
+          "div",
+          { className: "lookup-card evidence-card" },
+          h("p", { className: "tiny-label" }, "Identity"),
+          h("strong", null, identity.protein_name || experimentFallbackName(proteinIntelligence)),
+          h("ul", null, identityLines.map((item, index) => h("li", { key: index }, item))),
+          h("div", { className: "tag-row" }, tag(`Seq length ${identity.sequence_length || chemistry.sequence_length || "n/a"}`), tag(identity.accession || "No accession"), tag(identity.reviewed || "Sequence-derived"))
+        ),
+        h(
+          "div",
+          { className: "lookup-card evidence-card" },
+          h("p", { className: "tiny-label" }, "Chemistry"),
+          h("div", { className: "tag-row" }, tag(`Charge / pI ${chemistry.theoretical_pI ?? "n/a"}`), tag(`Hydrophobicity ${chemistry.hydrophobic_fraction ?? "n/a"}`), tag(`Solubility risk ${chemistry.aggregation_risk || "n/a"}`)),
+          h("ul", null, (proteinIntelligence.buffer_recommendations || []).slice(0, 4).map((item, index) => h("li", { key: index }, item)))
+        ),
+        h(
+          "div",
+          { className: "lookup-card evidence-card" },
+          h("p", { className: "tiny-label" }, "Structure"),
+          h("ul", null, structureLines.map((item, index) => h("li", { key: index }, item))),
+          proteinIntelligence.alphafold?.pdb_url ? h("p", { className: "status" }, "AlphaFold structural model is available for deeper accessibility interpretation.") : null,
+          proteinIntelligence.resolved_accession
+            ? h(
+                "p",
+                { className: "status" },
+                h("a", { href: `https://www.alphafold.ebi.ac.uk/entry/${proteinIntelligence.resolved_accession}`, target: "_blank", rel: "noreferrer" }, "View this protein on AlphaFold")
+              )
+            : null
+        ),
+        h(
+          "div",
+          { className: "lookup-card evidence-card" },
+          h("p", { className: "tiny-label" }, "Features"),
+          h("div", { className: "tag-row" }, featureTags.map((value) => tag(value))),
+          examples.length ? h("ul", null, examples.slice(0, 5).map((item, index) => h("li", { key: index }, `${item.type} ${item.begin || "?"}-${item.end || "?"} ${item.description || ""}`.trim()))) : h("p", { className: "status" }, "Feature-level annotations will appear here when available.")
+        ),
+        h(
+          "div",
+          { className: "lookup-card evidence-card evidence-card-wide" },
+          h("p", { className: "tiny-label" }, "Blot Meaning"),
+          h("ul", null, (proteinIntelligence.predictions || []).map((item, index) => h("li", { key: index }, item))),
+          bandRisks.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Likely confounders"), h("ul", null, bandRisks.map((item, index) => h("li", { key: index }, `${item.title}: ${item.detail}`)))) : null
+        )
+      )
     );
   }
 
-  function ChemistrySummaryCard({ proteinIntelligence }) {
-    const chemistry = proteinIntelligence.chemistry || {};
-    return h(
-      "div",
-      { className: "comparison-grid" },
-      metricBlock("Theoretical pI", chemistry.theoretical_pI ?? "n/a"),
-      metricBlock("Hydrophobic fraction", chemistry.hydrophobic_fraction ?? "n/a"),
-      metricBlock("Hydrophobic domains", chemistry.hydrophobic_domain_count ?? "0"),
-      metricBlock("Aggregation risk", chemistry.aggregation_risk ?? "n/a")
-    );
-  }
-
-  function SuggestedStepsCard({ recommendation }) {
+  function ProteinFirstPlanCard({ plan, proteinIntelligence, recommendations, experiment }) {
+    const workflowCards = buildPredictiveWorkflowCards(proteinIntelligence, experiment, recommendations, plan);
     return h(
       "div",
       { className: "recommendation-card comparison-card-wide" },
-      h("h3", null, "Suggested starting steps"),
+      h("h3", null, "Protein-led predictive model"),
+      h("p", { className: "status" }, plan.summary),
       h(
-        "ol",
-        { className: "steps-list" },
-        recommendation.actions.slice(0, 6).map((item, index) => h("li", { key: index }, item))
+        "div",
+        { className: "predictive-workflow-grid" },
+        workflowCards.map((card) =>
+          h(
+            "div",
+            { className: "lookup-card predictive-workflow-card", key: card.title },
+            h("p", { className: "tiny-label" }, card.title),
+            h("strong", null, `Recommended: ${card.recommended}`),
+            h("p", { className: "tiny-label" }, "Because"),
+            h("ul", null, card.because.map((item, index) => h("li", { key: index }, item))),
+            h("p", { className: "tiny-label" }, "Watch"),
+            h("ul", null, card.watch.map((item, index) => h("li", { key: index }, item)))
+          )
+        )
       )
     );
   }
@@ -818,7 +1184,7 @@
     return h("div", { className: "recommendation-card" }, h("h3", null, title), h("p", { className: "status mono-copy" }, recommendation.summary), h("div", { className: `score-pill ${scoreClass}` }, `Confidence ${Math.round(recommendation.score * 100)}%`), h("p", { className: "tiny-label" }, "Why Butterfly thinks this"), h("ul", null, recommendation.rationale.map((item, index) => h("li", { key: index }, item))), h("p", { className: "tiny-label" }, "Next actions"), h("ul", null, recommendation.actions.map((item, index) => h("li", { key: index }, item))));
   }
 
-  function ImagePanelMini({ title, stage, analysis, preview, onUpload }) {
+  function ImagePanelMini({ title, stage, analysis, preview, onUpload, onAIInterpret, aiInterpretation, aiLoadingStage }) {
     return h(
       "div",
       { className: "upload-card" },
@@ -829,7 +1195,21 @@
     );
   }
 
-  function HistoryPanel({ number, history, selectedId, onLoad }) {
+  function AIInterpretationCard({ interpretation, compact }) {
+    return h(
+      "div",
+      { className: compact ? "lookup-card ai-card" : "recommendation-card comparison-card-wide ai-card" },
+      h("p", { className: "tiny-label" }, `AI image interpretation${interpretation.source === "fallback" ? " · fallback mode" : interpretation.model ? ` · ${interpretation.model}` : ""}`),
+      h("p", { className: "status" }, interpretation.summary),
+      interpretation.quality_flags?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Quality flags"), h("ul", null, interpretation.quality_flags.map((item, index) => h("li", { key: index }, item)))) : null,
+      interpretation.band_interpretation?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Band interpretation"), h("ul", null, interpretation.band_interpretation.map((item, index) => h("li", { key: index }, item)))) : null,
+      interpretation.possible_causes?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Possible causes"), h("ul", null, interpretation.possible_causes.map((item, index) => h("li", { key: index }, item)))) : null,
+      interpretation.next_steps?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Next steps"), h("ul", null, interpretation.next_steps.map((item, index) => h("li", { key: index }, item)))) : null,
+      interpretation.confidence ? h("div", { className: "score-pill score-warn" }, interpretation.confidence) : null
+    );
+  }
+
+  function SidebarPanel({ number, history, selectedId, onLoad }) {
     return h(
       "aside",
       { className: "stack" },
@@ -847,12 +1227,42 @@
     return h("section", { className: "panel panel-active" }, h("div", { className: "panel-header" }, h("div", { className: "panel-index" }, number || title.charAt(0)), h("div", null, h("h2", null, title), h("div", { className: "panel-copy" }, subtitle))), children);
   }
 
-  function FieldGroup({ title, copy, children }) {
+  function FieldGroup({ title, copy, children, className }) {
     return h(
       "div",
-      { className: "field-group" },
+      { className: className ? `field-group ${className}` : "field-group" },
       h("div", { className: "field-group-header" }, h("h3", null, title), copy ? h("p", null, copy) : null),
       h("div", { className: "field-group-grid" }, children)
+    );
+  }
+
+  function GuidedStepCard({ step, title, copy }) {
+    return h(
+      "div",
+      { className: "guided-step-card" },
+      h("p", { className: "tiny-label" }, step),
+      h("strong", null, title),
+      h("p", { className: "status" }, copy)
+    );
+  }
+
+  function StageFlowChart({ items, compact }) {
+    return h(
+      "div",
+      { className: compact ? "flow-chart flow-chart-compact" : "flow-chart" },
+      items.map(([label, text], index) =>
+        h(
+          React.Fragment,
+          { key: `${label}-${text}` },
+          h(
+            "div",
+            { className: "flow-node" },
+            h("span", { className: "flow-node-index" }, label),
+            h("span", { className: "flow-node-text" }, text)
+          ),
+          index < items.length - 1 ? h("div", { className: "flow-arrow", "aria-hidden": "true" }, "→") : null
+        )
+      )
     );
   }
 
@@ -878,6 +1288,211 @@
 
   function tag(value) {
     return h("span", { className: "tag", key: value }, value);
+  }
+
+  function experimentFallbackName(proteinIntelligence) {
+    return proteinIntelligence.resolved_accession || "Protein evidence";
+  }
+
+  function buildPredictiveEvidenceMap(proteinIntelligence, plan) {
+    const chemistry = proteinIntelligence?.chemistry || {};
+    const alphafold = proteinIntelligence?.alphafold || {};
+    const featureCounts = proteinIntelligence?.ebi_features?.counts || {};
+    const map = [];
+    const size = chemistry.molecular_weight_kda;
+    const pI = chemistry.theoretical_pI;
+    const hydrophobicity = chemistry.hydrophobic_fraction;
+    const membraneRisk = chemistry.membrane_retention_risk;
+    const aggregationRisk = chemistry.aggregation_risk;
+    const domainCount = chemistry.domain_count || featureCounts.DOMAIN || 0;
+    const processingCount = chemistry.cleavage_site_count || 0;
+
+    if (size !== undefined && size !== null) {
+      let effect = `Expected size is about ${size} kDa, so Butterfly uses this to set the gel window and transfer intensity.`;
+      if (size >= 120) {
+        effect = `Expected size is about ${size} kDa, which pushes the model toward gentler wet transfer, longer transfer time, and careful cooling rather than aggressive current.`;
+      } else if (size <= 25) {
+        effect = `Expected size is about ${size} kDa, which pushes the model toward shorter transfer conditions to reduce blow-through and loss from the membrane.`;
+      }
+      map.push({
+        title: "Molecular weight -> transfer plan",
+        driver: `Predicted molecular weight ${size} kDa`,
+        effect,
+        sources: ["FASTA chemistry", "UniProt sequence"],
+      });
+    }
+
+    if (pI !== undefined && pI !== null) {
+      let effect = `Predicted pI is ${pI}, so standard sample and running buffers are a sensible first-pass baseline.`;
+      if (pI >= 8.5) {
+        effect = `Predicted pI is ${pI}, so Butterfly favours stronger denaturation, enough reducing agent, and caution against under-denaturing a relatively basic target.`;
+      } else if (pI <= 5.5) {
+        effect = `Predicted pI is ${pI}, so Butterfly keeps a standard Tris-glycine-SDS baseline and suggests tuning transfer before changing the buffer system.`;
+      }
+      map.push({
+        title: "Charge / pI -> buffer compatibility",
+        driver: `Theoretical pI ${pI}`,
+        effect,
+        sources: ["FASTA chemistry"],
+      });
+    }
+
+    if (hydrophobicity !== undefined || membraneRisk) {
+      map.push({
+        title: "Hydrophobicity -> membrane and transfer choice",
+        driver: `Hydrophobic fraction ${hydrophobicity ?? "n/a"} with membrane-retention risk ${membraneRisk || "unknown"}`,
+        effect:
+          membraneRisk === "high" || (hydrophobicity || 0) >= 0.38
+            ? "Hydrophobic or membrane-associated behaviour pushes Butterfly toward PVDF and gentler transfer conditions, because recovery from the gel may be poorer and patchier under harsher transfer settings."
+            : "Hydrophobicity does not strongly oppose a standard first-pass membrane and transfer setup, so Butterfly keeps the transfer recommendation closer to the baseline method.",
+        sources: ["FASTA chemistry", "EMBL-EBI features"],
+      });
+    }
+
+    if (processingCount > 0 || plan?.confounding_bands?.length) {
+      map.push({
+        title: "Processing / PTM risk -> expected band region",
+        driver: processingCount > 0 ? `Processing or cleavage features ${processingCount}` : "Annotated confounding-band risk",
+        effect: "Butterfly expands the expected band interpretation beyond the full-length protein alone, because processed, mature, or mobility-shifted species may sit close to the intended band window.",
+        sources: ["UniProt annotation", "EMBL-EBI features"],
+      });
+    }
+
+    if (domainCount > 1 || alphafold.available) {
+      const structureLine = alphafold.available
+        ? `AlphaFold confidence is ${alphafold.mean_plddt} (${alphafold.confidence_label})`
+        : "Multi-domain architecture is annotated";
+      map.push({
+        title: "Structure / domains -> antibody accessibility caution",
+        driver: domainCount > 1 ? `${structureLine}; annotated domains ${domainCount}` : structureLine,
+        effect: "Butterfly treats domain architecture and structure confidence as clues for which regions may remain stable or accessible after denaturation, helping the scientist think about antibody region choice and misleading fragments.",
+        sources: alphafold.available ? ["AlphaFold", "EMBL-EBI features"] : ["EMBL-EBI features"],
+      });
+    }
+
+    if (aggregationRisk) {
+      map.push({
+        title: "Aggregation risk -> sample preparation and blocker caution",
+        driver: `Predicted aggregation risk ${aggregationRisk}`,
+        effect:
+          aggregationRisk === "low"
+            ? "Low predicted aggregation risk means Butterfly can keep the first-pass sample preparation closer to the standard denaturing workflow."
+            : "Aggregation risk is not low, so Butterfly pushes the scientist toward strong denaturation, fresh reducing buffer, and caution before blaming antibody concentration alone for weak or messy signal.",
+        sources: ["FASTA chemistry", "AlphaFold"],
+      });
+    }
+
+    return map.slice(0, 6);
+  }
+
+  function buildPredictiveWorkflowCards(proteinIntelligence, experiment, recommendations, plan) {
+    const chemistry = proteinIntelligence?.chemistry || {};
+    const bufferCompatibility = proteinIntelligence?.buffer_compatibility || {};
+    const counts = proteinIntelligence?.ebi_features?.counts || {};
+    const size = Number(chemistry.molecular_weight_kda || 0);
+    const pI = chemistry.theoretical_pI;
+    const hydrophobicity = chemistry.hydrophobic_fraction;
+    const membraneRisk = chemistry.membrane_retention_risk || "unknown";
+    const aggregationRisk = chemistry.aggregation_risk || "unknown";
+    const abundance = (experiment?.target_abundance_class || "moderate").toLowerCase();
+    const primaryType = (experiment?.primary_type || "").toLowerCase();
+    const domainCount = chemistry.domain_count || counts.DOMAIN || 0;
+    const processingCount = chemistry.cleavage_site_count || 0;
+    const isHydrophobic = membraneRisk === "high" || (hydrophobicity || 0) >= 0.38 || (chemistry.hydrophobic_domain_count || 0) > 0;
+    const gelPercent = recommendedGelPercent(size || null);
+    const runningBuffer = bufferCompatibility.running_buffer || "Tris-glycine-SDS";
+    const membraneType = isHydrophobic ? "PVDF" : "Nitrocellulose";
+    const transferMode = recommendations?.transfer?.actions?.[0]?.toLowerCase().includes("semi-dry")
+      ? "Semi-dry transfer"
+      : size && size <= 25
+        ? "Semi-dry transfer"
+        : "Wet transfer";
+    const poreSize = size && size < 40 ? "0.2 um membrane" : "0.45 um membrane";
+    const blocker = primaryType === "phospho" ? "2% to 3% BSA" : abundance === "high" || abundance === "very high" ? "2% to 3% milk or BSA" : abundance === "low" || abundance === "very low" ? "2% to 3% BSA or casein" : "3% milk";
+    const washPlan = primaryType === "phospho" ? "3 x 5 min TBST" : abundance === "low" || abundance === "very low" ? "3 x 5 min TBST, avoid over-washing" : "3 x 5 to 10 min TBST";
+
+    return [
+      {
+        title: "Gel running conditions",
+        recommended: `${gelPercent} SDS-PAGE with ${runningBuffer}`,
+        because: [
+          `Size around ${size || "unknown"} kDa points Butterfly to ${gelPercent} as the first gel choice.`,
+          pI >= 8.5
+            ? `Predicted pI ${pI} is relatively basic, so keep strong denaturation and sufficient reducing agent during sample prep.`
+            : pI && pI <= 5.5
+              ? `Predicted pI ${pI} is relatively acidic, so keep the standard running-buffer system before changing gel chemistry.`
+              : `Predicted pI ${pI || "unknown"} does not strongly push the run away from a standard SDS-PAGE baseline.`,
+        ],
+        watch: [
+          "Use the gel to resolve the expected band window before changing antibody conditions.",
+          "If the band compresses or runs unexpectedly, adjust gel percentage before redesigning the whole workflow.",
+        ],
+      },
+      {
+        title: "Transfer",
+        recommended: `${transferMode} on ${membraneType} using ${poreSize}`,
+        because: [
+          size && size < 40
+            ? "Targets under 40 kDa are at greater risk of blow-through, so Butterfly recommends a 0.2 um membrane."
+            : "Larger targets are better retained on a 0.45 um membrane unless you know the protein is unusually small or fragile.",
+          isHydrophobic
+            ? `Hydrophobicity ${hydrophobicity ?? "n/a"} and membrane-retention risk ${membraneRisk} push the method toward PVDF and gentler transfer handling.`
+            : `Hydrophobicity ${hydrophobicity ?? "n/a"} does not strongly oppose a standard membrane-transfer workflow.`,
+        ],
+        watch: [
+          transferMode === "Semi-dry transfer"
+            ? "If semi-dry is used, watch larger or more hydrophobic targets carefully because recovery can fall off faster."
+            : "Wet transfer is the safer first-pass choice when size or protein chemistry suggests under-transfer risk.",
+          "Check for under-transfer before increasing antibody concentration to compensate for missing signal.",
+        ],
+      },
+      {
+        title: "Blocking and washing",
+        recommended: `${blocker} with ${washPlan}`,
+        because: [
+          primaryType === "phospho"
+            ? "Phospho-style workflows are more compatible with BSA than milk because milk can increase background or competitive phospho-like signal."
+            : `Abundance set to ${abundance}, so Butterfly is balancing enough blocking to reduce nonspecific signal without over-masking the target.`,
+          abundance === "high" || abundance === "very high"
+            ? "For abundant targets, keep blocking lighter and exposures shorter so a strong signal does not become haze."
+            : abundance === "low" || abundance === "very low"
+              ? "For low-abundance targets, avoid over-blocking and over-washing because the target can disappear before specificity improves."
+              : "For moderate abundance, start with a standard blocker and adjust only one variable at a time if background appears.",
+        ],
+        watch: [
+          aggregationRisk !== "low"
+            ? `Aggregation risk is ${aggregationRisk}, so improve denaturation and sample quality before assuming the blocker is the main problem.`
+            : "If background rises, change blocker or wash stringency before redesigning the whole blot.",
+          "Do not over-mask the target by increasing blocker strength and wash stringency at the same time.",
+        ],
+      },
+      {
+        title: "Take into consideration",
+        recommended: "Review the protein-specific cautions before running the blot",
+        because: [
+          processingCount > 0
+            ? "Processing or cleavage features are present, so compare the observed band against mature and processed forms, not only the full-length protein."
+            : "Use the expected molecular-weight window, not a single exact band size, when judging specificity.",
+          domainCount > 1
+            ? "Multiple domains are annotated, so stable fragments can appear and still react if the antibody binds one retained region."
+            : "Check whether the antibody region is likely to remain represented after denaturation and transfer.",
+        ],
+        watch: [
+          `Consider N- and C-terminus context, PTM-related shifts, aggregation risk (${aggregationRisk}), and similar-MW confounders before changing the entire method.`,
+          "If the observed band is close to the predicted region but not exact, check protein processing and PTM shift risk before discarding the antibody.",
+        ],
+      },
+    ];
+  }
+
+  function recommendedGelPercent(size) {
+    if (!size || Number.isNaN(size)) return "10%";
+    if (size >= 150) return "6%";
+    if (size >= 100) return "7.5%";
+    if (size >= 60) return "8%";
+    if (size >= 35) return "10%";
+    if (size >= 20) return "12%";
+    return "15%";
   }
 
   function buildBlockingInsight(experiment) {
@@ -916,13 +1531,81 @@
     };
   }
 
+  function inferPrimaryType(experiment) {
+    const explicit = (experiment.primary_type || "").trim().toLowerCase();
+    if (explicit) return explicit;
+    const label = `${experiment.primary_target || ""} ${experiment.protein_name || ""}`.toLowerCase();
+    if (label.includes("phospho") || label.includes("p-")) return "phospho";
+    return "total";
+  }
+
+  function recommendedGelPercent(sizeKda) {
+    const size = Number(sizeKda);
+    if (!Number.isFinite(size)) return "10";
+    if (size >= 150) return "6";
+    if (size >= 100) return "7.5";
+    if (size >= 60) return "8";
+    if (size >= 35) return "10";
+    if (size >= 20) return "12";
+    return "15";
+  }
+
+  function recommendedMembrane(proteinIntelligence) {
+    const chemistry = proteinIntelligence?.chemistry || {};
+    if (chemistry.membrane_retention_risk === "high" || (chemistry.hydrophobic_domain_count || 0) > 0) {
+      return "PVDF";
+    }
+    return "Nitrocellulose";
+  }
+
+  function recommendedTransferMode(proteinIntelligence) {
+    const chemistry = proteinIntelligence?.chemistry || {};
+    const size = Number(chemistry.molecular_weight_kda);
+    if ((chemistry.hydrophobic_domain_count || 0) > 0) return "wet";
+    if (Number.isFinite(size) && size >= 110) return "wet";
+    if (Number.isFinite(size) && size <= 25) return "semi-dry";
+    return "wet";
+  }
+
+  function recommendedBlocker(experiment, proteinIntelligence) {
+    const chemistry = proteinIntelligence?.chemistry || {};
+    const primaryType = inferPrimaryType(experiment);
+    if (primaryType === "phospho") return "BSA";
+    if (chemistry.aggregation_risk === "high") return "BSA";
+    return "Milk";
+  }
+
+  function recommendedDetection(experiment) {
+    const abundance = (experiment.target_abundance_class || "moderate").toLowerCase();
+    if (abundance === "very low" || abundance === "low") return "high-sensitivity ECL";
+    return "ECL";
+  }
+
+  function buildProteinFirstExperiment(experiment, proteinIntelligence) {
+    const chemistry = proteinIntelligence?.chemistry || {};
+    const size = Number(chemistry.molecular_weight_kda);
+    const primaryType = inferPrimaryType(experiment);
+    return {
+      ...experiment,
+      protein_size_kda: experiment.protein_size_kda || (Number.isFinite(size) ? String(Math.round(size)) : ""),
+      gel_percent: experiment.gel_percent || recommendedGelPercent(size),
+      membrane_type: recommendedMembrane(proteinIntelligence).toLowerCase() === "pvdf" ? "pvdf" : "nitrocellulose",
+      transfer_mode: experiment.transfer_mode && experiment.transfer_mode !== "either" ? experiment.transfer_mode : recommendedTransferMode(proteinIntelligence),
+      blocking_reagent: recommendedBlocker(experiment, proteinIntelligence).toLowerCase() === "bsa" ? "bsa" : "milk",
+      detection_method: experiment.detection_method || recommendedDetection(experiment),
+      primary_type: primaryType,
+      protein_load_ug: experiment.protein_load_ug || (experiment.target_abundance_class === "very low" || experiment.target_abundance_class === "low" ? "20" : "10"),
+      lane_count: experiment.lane_count || "10",
+    };
+  }
+
   function buildImageEvidenceSummary(analyses) {
     const available = Object.keys(analyses || {}).filter((stage) => analyses[stage]);
     if (!available.length) {
       return {
         title: "No image evidence uploaded yet.",
         copy:
-          "Troubleshooting will still work from the symptom and method fields, but it becomes more adaptive if the Experiment Log includes gel, transfer, or final blot images.",
+          "Troubleshooting will still work from the symptom and method fields, but Butterfly can use more image-based evidence if the Experiment Log includes gel, transfer, or final blot images.",
       };
     }
 

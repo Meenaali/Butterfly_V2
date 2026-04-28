@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from html import unescape
@@ -264,6 +265,21 @@ def _cytiva_secondary_suggestion(primary_host: str | None) -> dict[str, str] | N
     return None
 
 
+def _url_evidence_match_score(
+    payload: dict[str, Any],
+    primary: AntibodyFacts,
+    secondary: AntibodyFacts,
+    rule_score: float,
+    findings: list[str],
+    warnings: list[str],
+) -> dict[str, Any]:
+    return {
+        "score": round(max(0.0, min(1.0, rule_score)), 3),
+        "label": "url-derived",
+        "summary": "Butterfly compared the readable product-page evidence and manual host/isotype/conjugate fields to assess primary and secondary compatibility.",
+    }
+
+
 def check_antibody_compatibility(payload: dict[str, Any]) -> dict[str, Any]:
     primary = extract_antibody_facts(
         payload.get("primary_url"),
@@ -353,9 +369,14 @@ def check_antibody_compatibility(payload: dict[str, Any]) -> dict[str, Any]:
     else:
         status = "not compatible"
 
+    url_match = _url_evidence_match_score(payload, primary, secondary, score, findings, warnings)
+
     return {
         "status": status,
         "score": round(max(0.0, min(1.0, score)), 3),
+        "url_match_score": url_match["score"],
+        "url_match_label": url_match["label"],
+        "url_match_summary": url_match["summary"],
         "primary": primary.__dict__,
         "secondary": secondary.__dict__,
         "suggested_secondary": suggestion,

@@ -67,6 +67,35 @@ Before sharing the Render link, add these Render environment variables:
 - `BUTTERFLY_PASSWORD`: the private password people must enter to open Butterfly.
 - `BUTTERFLY_SECRET`: a long random phrase used to sign login cookies.
 - `BUTTERFLY_COOKIE_SECURE`: set to `true` on Render so the login cookie is HTTPS-only.
+- `OPENAI_API_KEY`: optional, enables live multimodal AI image interpretation.
+- `OPENAI_VISION_MODEL`: optional, defaults to `gpt-4.1-mini`.
+- `OPENAI_TEXT_MODEL`: optional, defaults to `gpt-4.1-mini` for Ask Butterfly grounded responses.
+
+## Ask Butterfly Docs
+
+Butterfly can now index uploaded `.pdf`, `.txt`, and `.md` files for grounded retrieval.
+
+Recommended first uploads:
+
+- lab Western blot protocols
+- blocking and washing guides
+- antibody datasheets
+- troubleshooting notes
+- transfer system instructions
+
+The side panel will chunk these documents and use them in Ask Butterfly responses.
+
+## Vector RAG
+
+Butterfly now supports a ChromaDB-backed semantic retrieval layer.
+
+- If `chromadb` is installed, uploaded chunks and built-in troubleshooting knowledge are indexed into a persistent local vector store.
+- If `OPENAI_API_KEY` is set, embeddings can use OpenAI.
+- If no embedding API is configured, Butterfly falls back to a local hashed embedding so retrieval still works.
+
+Optional environment variable:
+
+- `OPENAI_EMBED_MODEL`: defaults to `text-embedding-3-small`
 
 Render will run:
 

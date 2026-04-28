@@ -21,6 +21,8 @@ class ProteinIntelligenceResult:
     alphafold: dict[str, Any]
     ebi_features: dict[str, Any]
     chemistry: dict[str, Any]
+    buffer_compatibility: dict[str, Any]
+    band_risks: list[dict[str, Any]]
     predictions: list[str]
     buffer_recommendations: list[str]
     caveats: list[str]
@@ -240,6 +242,65 @@ def _extract_uniprot_summary(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extract_band_risks(entry: dict[str, Any], feature_summary: dict[str, Any], sequence: str) -> list[dict[str, Any]]:
+    risks: list[dict[str, Any]] = []
+    comments = entry.get("comments", []) if entry else []
+    keywords = [str(item.get("name", "")).lower() for item in entry.get("keywords", [])] if entry else []
+    alt_products = []
+    for comment in comments:
+        if comment.get("commentType") == "ALTERNATIVE PRODUCTS":
+            alt_products.extend(comment.get("isoforms", []))
+
+    if alt_products:
+        risks.append(
+            {
+                "type": "isoforms",
+                "title": "Annotated isoform risk",
+                "detail": f"UniProt reports {len(alt_products)} isoform or alternative-product entry(ies), so bands near the expected window may include splice isoforms rather than only the canonical form.",
+            }
+        )
+
+    counts = feature_summary.get("counts", {})
+    processed_features = counts.get("CHAIN", 0) + counts.get("PEPTIDE", 0) + counts.get("PROPEP", 0) + counts.get("SIGNAL", 0)
+    if processed_features > 0:
+        risks.append(
+            {
+                "type": "processed_forms",
+                "title": "Processed or cleaved-form risk",
+                "detail": "Signal peptide or processed-chain annotations are present, so mature protein size may differ from the full-length theoretical molecular weight.",
+            }
+        )
+
+    if counts.get("DOMAIN", 0) > 1:
+        risks.append(
+            {
+                "type": "domain_fragments",
+                "title": "Domain-fragment risk",
+                "detail": "Multiple annotated domains raise the chance that degradation or partial processing could produce stable smaller fragments that still react with some antibodies.",
+            }
+        )
+
+    if any(term in " ".join(keywords) for term in ["glycoprotein", "glycosylation", "secreted", "phosphoprotein"]):
+        risks.append(
+            {
+                "type": "ptm_shift",
+                "title": "PTM-related mobility-shift risk",
+                "detail": "Annotated PTM or trafficking-related keywords suggest that modified or mature species could run close to the expected band rather than as a single clean product.",
+            }
+        )
+
+    if sequence and len(sequence) > 900:
+        risks.append(
+            {
+                "type": "high_mass_processing",
+                "title": "Large-target migration ambiguity",
+                "detail": "Very large proteins often migrate atypically and can produce incomplete-transfer or fragment-like patterns near lower molecular-weight regions.",
+            }
+        )
+
+    return risks[:5]
+
+
 def _extract_alphafold_summary(predictions: list[dict[str, Any]]) -> dict[str, Any]:
     if not predictions:
         return {"available": False}
@@ -370,6 +431,54 @@ def _buffer_recommendations(chemistry: dict[str, Any]) -> list[str]:
     return recommendations[:9]
 
 
+def _buffer_compatibility_summary(chemistry: dict[str, Any]) -> dict[str, Any]:
+    p_i = chemistry["theoretical_pI"]
+    hydrophobicity = chemistry["hydrophobic_fraction"]
+    membrane_like = chemistry["hydrophobic_domain_count"] > 0 or chemistry["membrane_retention_risk"] != "low"
+    large = chemistry["molecular_weight_kda"] >= 120
+    small = chemistry["molecular_weight_kda"] <= 25
+
+    sample_buffer = "Standard reducing Laemmli sample buffer"
+    running_buffer = "Tris-glycine-SDS"
+    transfer_buffer = "Standard transfer buffer"
+    compatibility = []
+    cautions = []
+
+    if p_i >= 8.5:
+        compatibility.append("The target is relatively basic, so sample buffering should preserve strong denaturation and enough reducing agent.")
+        cautions.append("Avoid under-denaturing a basic target because partial folding can exaggerate aggregation or poor transfer.")
+    elif p_i <= 5.5:
+        compatibility.append("The target is relatively acidic, so standard Tris-glycine-SDS is a reasonable first running-buffer choice.")
+        cautions.append("Tune transfer time before changing away from the standard electrophoresis buffer system.")
+    else:
+        compatibility.append("The target sits near a mid-range pI, so standard sample and running buffer systems are usually compatible as a first pass.")
+
+    if membrane_like or hydrophobicity >= 0.38:
+        sample_buffer = "Strong reducing Laemmli buffer with careful denaturation"
+        transfer_buffer = "Transfer buffer with gentle conditions; consider retaining a small amount of SDS if recovery is poor"
+        compatibility.append("Hydrophobic or membrane-associated character makes PVDF and gentler transfer-buffer conditions more compatible than harsh dry transfer.")
+        cautions.append("Hydrophobic targets can under-transfer or recover unevenly if the transfer buffer is too aggressive or too detergent-poor.")
+    else:
+        compatibility.append("No strong membrane-like bias is predicted, so standard transfer buffer is a sensible first-pass choice.")
+
+    if chemistry["aggregation_risk"] != "low":
+        compatibility.append("Aggregation risk is not low, so fresh reducing buffer and full heat denaturation are especially important.")
+        cautions.append("High aggregation risk can make apparent buffer incompatibility look worse than it really is.")
+
+    if large:
+        compatibility.append("Large-protein transfer is more compatible with wet transfer and cooled buffer conditions.")
+    elif small:
+        compatibility.append("Small-protein transfer is more compatible with shorter transfer conditions to avoid blow-through.")
+
+    return {
+        "sample_buffer": sample_buffer,
+        "running_buffer": running_buffer,
+        "transfer_buffer": transfer_buffer,
+        "compatibility": compatibility[:6],
+        "cautions": cautions[:5],
+    }
+
+
 def build_protein_intelligence(
     uniprot_id: str | None,
     protein_name: str | None,
@@ -417,6 +526,8 @@ def build_protein_intelligence(
     feature_summary = _feature_summary(ebi_feature_payload)
     alphafold_summary = _extract_alphafold_summary(alphafold_predictions)
     chemistry = _chemistry_summary(sequence, feature_summary)
+    buffer_compatibility = _buffer_compatibility_summary(chemistry)
+    band_risks = _extract_band_risks(uniprot_entry, feature_summary, sequence)
     predictions = _prediction_text(chemistry, alphafold_summary, feature_summary)
     buffer_recommendations = _buffer_recommendations(chemistry)
 
@@ -429,6 +540,8 @@ def build_protein_intelligence(
         alphafold=alphafold_summary,
         ebi_features=feature_summary,
         chemistry=chemistry,
+        buffer_compatibility=buffer_compatibility,
+        band_risks=band_risks,
         predictions=predictions,
         buffer_recommendations=buffer_recommendations,
         caveats=caveats,
