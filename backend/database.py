@@ -132,3 +132,21 @@ def create_pilot_submission(payload: dict[str, Any]) -> dict[str, Any]:
         "created_at": row["created_at"],
         "payload": json.loads(row["payload_json"]),
     }
+
+
+def list_pilot_submissions() -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT id, created_at, payload_json FROM pilot_submissions ORDER BY created_at DESC, id DESC"
+        ).fetchall()
+
+    items = []
+    for row in rows:
+        items.append(
+            {
+                "id": row["id"],
+                "created_at": row["created_at"],
+                "payload": json.loads(row["payload_json"]),
+            }
+        )
+    return items

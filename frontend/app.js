@@ -57,6 +57,7 @@
   };
 
   const ONBOARDING_STORAGE_KEY = "butterflyPilotOnboardingComplete";
+  const PILOT_FEEDBACK_STORAGE_KEY = "butterflyPilotFeedbackDraft";
 
   const pilotTasks = [
     "Use Protein Intelligence with a UniProt ID or FASTA sequence.",
@@ -67,19 +68,21 @@
     "Use Virtual Assistant for one troubleshooting scenario.",
   ];
 
-  const pilotQuestions = [
+  const defaultPilotFeedback = [
     "What was the most useful part of Butterfly?",
     "What was confusing or missing?",
     "Which recommendation did you trust least?",
     "Would you use Butterfly before running a first Western blot?",
     "Would you use Butterfly to review a failed blot?",
-  ];
+    "",
+  ].join("\n");
 
-  const pilotFocus = [
-    "Scientific trust",
-    "Workflow clarity",
-    "Predictive strategy quality",
-    "Troubleshooting usefulness",
+  const onboardingFeedbackPrompts = [
+    "What was the most useful part of Butterfly?",
+    "What was confusing or missing?",
+    "Which recommendation did you trust least?",
+    "Would you use Butterfly before running a first Western blot?",
+    "Would you use Butterfly to review a failed blot?",
   ];
 
   function App() {
@@ -94,6 +97,12 @@
     const [aiInterpretations, setAiInterpretations] = useState({});
     const [troubleshootingPlan, setTroubleshootingPlan] = useState(null);
     const [history, setHistory] = useState([]);
+    const [pilotSubmissions, setPilotSubmissions] = useState([]);
+    const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+    const [adminPassword, setAdminPassword] = useState("");
+    const [adminError, setAdminError] = useState("");
+    const [adminLoading, setAdminLoading] = useState(false);
+    const [pilotFeedbackDraft, setPilotFeedbackDraft] = useState(defaultPilotFeedback);
     const [chatMessages, setChatMessages] = useState([]);
     const [chatQuestion, setChatQuestion] = useState("");
     const [docStatus, setDocStatus] = useState({ document_count: 0, chunk_count: 0, documents: [] });
@@ -130,15 +139,25 @@
     useEffect(() => {
       if (authenticated) {
         fetchHistory();
+        fetchAdminStatus();
         fetchIndexStatus();
         const complete = window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
+        const savedFeedback = window.localStorage.getItem(PILOT_FEEDBACK_STORAGE_KEY);
+        if (savedFeedback) {
+          setPilotFeedbackDraft(savedFeedback);
+        }
         setOnboardingComplete(complete);
         setOnboardingReady(true);
       } else {
         setOnboardingReady(false);
         setOnboardingComplete(false);
+        setAdminAuthenticated(false);
       }
     }, [authenticated]);
+
+    useEffect(() => {
+      window.localStorage.setItem(PILOT_FEEDBACK_STORAGE_KEY, pilotFeedbackDraft);
+    }, [pilotFeedbackDraft]);
 
     const comparison = useMemo(() => buildComparison(history, experiment), [history, experiment]);
     const strategyReady = Boolean(proteinIntelligence || experiment.protein_name);
@@ -169,8 +188,10 @@
     async function logout() {
       await fetch("/api/auth/logout", { method: "POST" });
       setAuthenticated(false);
+      setAdminAuthenticated(false);
       setOnboardingReady(false);
       setHistory([]);
+      setPilotSubmissions([]);
       setChatMessages([]);
       setDocStatus({ document_count: 0, chunk_count: 0, documents: [] });
       setStatus("Logged out of Butterfly.");
@@ -180,6 +201,43 @@
       const response = await fetch("/api/experiments");
       const items = await response.json();
       setHistory(items);
+    }
+
+    async function fetchPilotSubmissions() {
+      const response = await fetch("/api/pilot-submissions");
+      if (!response.ok) return;
+      const items = await response.json();
+      setPilotSubmissions(items);
+    }
+
+    async function fetchAdminStatus() {
+      const response = await fetch("/api/admin/status");
+      if (!response.ok) return;
+      const payload = await response.json();
+      setAdminAuthenticated(Boolean(payload.authenticated));
+      if (payload.authenticated) {
+        fetchPilotSubmissions();
+      }
+    }
+
+    async function loginAdmin() {
+      setAdminLoading(true);
+      setAdminError("");
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+      setAdminLoading(false);
+
+      if (!response.ok) {
+        setAdminError("That admin password did not work.");
+        return;
+      }
+
+      setAdminAuthenticated(true);
+      setAdminPassword("");
+      fetchPilotSubmissions();
     }
 
     async function fetchIndexStatus() {
@@ -215,6 +273,7 @@
       window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
       setOnboardingComplete(true);
       setOnboardingReady(true);
+      fetchPilotSubmissions();
       setStatus("Welcome to the Butterfly pilot.");
       return true;
     }
@@ -695,7 +754,16 @@
           })
         ),
         h(SidebarPanel, {
-          number: "08",
+          number: "09",
+          pilotSubmissions,
+          adminAuthenticated,
+          adminPassword,
+          adminError,
+          adminLoading,
+          onAdminPasswordChange: setAdminPassword,
+          onAdminLogin: loginAdmin,
+          pilotFeedbackDraft,
+          onPilotFeedbackChange: setPilotFeedbackDraft,
           history,
           selectedId,
           onLoad: loadExperiment,
@@ -1366,7 +1434,7 @@
                   "div",
                   { className: "history-stack" },
                   h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "Suggested testing flow"), h("ol", { className: "steps-list" }, pilotTasks.map((item, index) => h("li", { key: index }, item)))),
-                  h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "Feedback to keep in mind"), h("ul", null, pilotQuestions.map((item, index) => h("li", { key: index }, item))))
+                  h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "Feedback to keep in mind"), h("ul", null, onboardingFeedbackPrompts.map((item, index) => h("li", { key: index }, item))))
                 ),
                 error ? h("p", { className: "auth-error" }, error) : null,
                 h("div", { className: "button-row" }, h("button", { className: "button button-ghost", type: "button", onClick: onBack, disabled: loading }, "Back"), h("button", { className: "button button-primary", type: "button", onClick: onFinish, disabled: loading }, loading ? "Saving and entering Butterfly..." : "Enter Butterfly"))
@@ -1377,7 +1445,21 @@
     );
   }
 
-  function SidebarPanel({ number, history, selectedId, onLoad }) {
+  function SidebarPanel({
+    number,
+    pilotSubmissions,
+    adminAuthenticated,
+    adminPassword,
+    adminError,
+    adminLoading,
+    onAdminPasswordChange,
+    onAdminLogin,
+    pilotFeedbackDraft,
+    onPilotFeedbackChange,
+    history,
+    selectedId,
+    onLoad,
+  }) {
     return h(
       "aside",
       { className: "stack" },
@@ -1389,21 +1471,6 @@
           { className: "pilot-testing-stack" },
           h(
             "div",
-            { className: "lookup-card pilot-hero-card" },
-            h("p", { className: "tiny-label" }, "Pilot version"),
-            h("strong", null, "butterfly-pilot-v1"),
-            h("p", { className: "status" }, "Use the same frozen version for all testers in the first pilot round."),
-            h("div", { className: "tag-row" }, tag("3-5 testers"), tag("Protein-first planning"), tag("Pilot workflow"))
-          ),
-          h(
-            "div",
-            { className: "lookup-card" },
-            h("p", { className: "tiny-label" }, "Tester focus"),
-            h("div", { className: "tag-row" }, pilotFocus.map((item) => tag(item))),
-            h("p", { className: "status pilot-support-copy" }, "Ask testers to use one real or recent protein example and comment on trust, clarity, and usefulness.")
-          ),
-          h(
-            "div",
             { className: "lookup-card" },
             h("p", { className: "tiny-label" }, "Suggested pilot tasks"),
             h("ol", { className: "steps-list" }, pilotTasks.map((item, index) => h("li", { key: index }, item)))
@@ -1411,10 +1478,62 @@
           h(
             "div",
             { className: "lookup-card" },
-            h("p", { className: "tiny-label" }, "Questions to ask testers"),
-            h("ul", null, pilotQuestions.map((item, index) => h("li", { key: index }, item)))
+            h("p", { className: "tiny-label" }, "Feedback form"),
+            h("p", { className: "status pilot-support-copy" }, "Use this editable space to capture tester comments during or after the pilot session."),
+            h("textarea", {
+              className: "pilot-feedback-textarea",
+              value: pilotFeedbackDraft,
+              onChange: (event) => onPilotFeedbackChange(event.target.value),
+              placeholder: "Add tester comments, observations, and suggested changes here.",
+            })
           )
         )
+      ),
+      h(
+        SectionCard,
+        { number: "08", title: "Admin Review", subtitle: "Review protected pilot-intake details collected from Butterfly testers." },
+        !adminAuthenticated
+          ? h(
+              "div",
+              { className: "lookup-card admin-review-card" },
+              h("p", { className: "tiny-label" }, "Admin unlock"),
+              h("p", { className: "status" }, "Pilot submissions are protected behind a separate admin password."),
+              h("label", null, "Admin password", h("input", { type: "password", value: adminPassword, onChange: (event) => onAdminPasswordChange(event.target.value), placeholder: "Enter admin password" })),
+              adminError ? h("p", { className: "auth-error" }, adminError) : null,
+              h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onAdminLogin, disabled: adminLoading || !adminPassword }, adminLoading ? "Unlocking..." : "Unlock admin review"))
+            )
+          : pilotSubmissions.length
+          ? h(
+              "div",
+              { className: "history-stack admin-review-stack" },
+              pilotSubmissions.map((item) =>
+                h(
+                  "div",
+                  { className: "lookup-card admin-review-card", key: item.id },
+                  h(
+                    "div",
+                    { className: "admin-review-header" },
+                    h("strong", null, item.payload.title || "Pilot tester"),
+                    h("span", { className: "history-meta mono-copy" }, `Submission #${item.id} • ${formatDate(item.created_at)}`)
+                  ),
+                  h(
+                    "div",
+                    { className: "tag-row" },
+                    tag(item.payload.role || "Role not set"),
+                    tag(item.payload.experience_level || "Experience not set"),
+                    tag(item.payload.contact_for_follow_up ? "Follow-up allowed" : "No follow-up")
+                  ),
+                  h(
+                    "div",
+                    { className: "admin-review-grid" },
+                    metricBlock("Name / initials", item.payload.full_name || "Not retained"),
+                    metricBlock("Email", item.payload.email || "Not retained"),
+                    metricBlock("Institution / lab", item.payload.institution || "Not provided")
+                  )
+                )
+              )
+            )
+          : h("div", { className: "empty-state" }, "No pilot submissions yet.")
       ),
       h(
         SectionCard,

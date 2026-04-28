@@ -706,15 +706,35 @@ textarea:focus {
   gap: 1rem;
 }
 
-.pilot-hero-card strong {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 1.05rem;
-  color: var(--accent-deep);
-}
-
 .pilot-support-copy {
   margin: 0.55rem 0 0;
+}
+
+.pilot-feedback-textarea {
+  min-height: 220px;
+}
+
+.admin-review-stack {
+  gap: 0.85rem;
+}
+
+.admin-review-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-review-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.admin-review-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.7rem;
 }
 
 .virtual-assistant-stack {

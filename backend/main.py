@@ -19,7 +19,15 @@ from pydantic import BaseModel, Field
 from .analysis import analyze_image_bytes
 from .ai_interpretation import interpret_blot_image
 from .antibody_compatibility import check_antibody_compatibility
-from .database import create_experiment, create_pilot_submission, get_experiment, init_db, list_experiments, update_experiment
+from .database import (
+    create_experiment,
+    create_pilot_submission,
+    get_experiment,
+    init_db,
+    list_experiments,
+    list_pilot_submissions,
+    update_experiment,
+)
 from .documents import delete_document, index_status, rebuild_document_index, save_uploaded_document
 from .protein_first_planner import generate_protein_first_plan
 from .protein_intelligence import build_protein_intelligence
@@ -37,8 +45,10 @@ from .troubleshooting import build_troubleshooting_plan
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 AUTH_COOKIE_NAME = "butterfly_session"
+ADMIN_AUTH_COOKIE_NAME = "butterfly_admin_session"
 AUTH_MAX_AGE_SECONDS = 60 * 60 * 12
 BUTTERFLY_PASSWORD = os.environ.get("BUTTERFLY_PASSWORD", "butterfly-demo")
+BUTTERFLY_ADMIN_PASSWORD = os.environ.get("BUTTERFLY_ADMIN_PASSWORD", "butterfly-admin")
 BUTTERFLY_SECRET = os.environ.get("BUTTERFLY_SECRET", "local-butterfly-secret-change-on-render")
 BUTTERFLY_COOKIE_SECURE = os.environ.get("BUTTERFLY_COOKIE_SECURE", "false").lower() == "true"
 
@@ -118,6 +128,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class AdminLoginRequest(BaseModel):
+    password: str
+
+
 class ProteinFirstPlanRequest(BaseModel):
     experiment: dict[str, Any] = Field(default_factory=dict)
     protein_intelligence: dict[str, Any] = Field(default_factory=dict)
@@ -138,18 +152,18 @@ class PilotIntakeRequest(BaseModel):
     contact_for_follow_up: bool = True
 
 
-def _sign_session(expires_at: int) -> str:
-    payload = f"butterfly:{expires_at}"
+def _sign_session(kind: str, expires_at: int) -> str:
+    payload = f"{kind}:{expires_at}"
     signature = hmac.new(BUTTERFLY_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     return f"{payload}:{signature}"
 
 
-def _valid_session(cookie_value: str | None) -> bool:
+def _valid_session(cookie_value: str | None, kind: str) -> bool:
     if not cookie_value:
         return False
 
     parts = cookie_value.split(":")
-    if len(parts) != 3 or parts[0] != "butterfly":
+    if len(parts) != 3 or parts[0] != kind:
         return False
 
     try:
@@ -160,13 +174,18 @@ def _valid_session(cookie_value: str | None) -> bool:
     if expires_at < int(time.time()):
         return False
 
-    expected = _sign_session(expires_at)
+    expected = _sign_session(kind, expires_at)
     return hmac.compare_digest(cookie_value, expected)
 
 
 def require_auth(butterfly_session: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME)) -> None:
-    if not _valid_session(butterfly_session):
+    if not _valid_session(butterfly_session, "butterfly"):
         raise HTTPException(status_code=401, detail="Login required")
+
+
+def require_admin_auth(butterfly_admin_session: str | None = Cookie(default=None, alias=ADMIN_AUTH_COOKIE_NAME)) -> None:
+    if not _valid_session(butterfly_admin_session, "butterfly-admin"):
+        raise HTTPException(status_code=401, detail="Admin login required")
 
 
 def recommendation_to_dict(result: RecommendationResult) -> dict[str, Any]:
@@ -205,7 +224,14 @@ def health() -> dict[str, str]:
 
 @app.get("/api/auth/status")
 def auth_status(butterfly_session: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME)) -> dict[str, bool]:
-    return {"authenticated": _valid_session(butterfly_session)}
+    return {"authenticated": _valid_session(butterfly_session, "butterfly")}
+
+
+@app.get("/api/admin/status")
+def admin_auth_status(
+    butterfly_admin_session: str | None = Cookie(default=None, alias=ADMIN_AUTH_COOKIE_NAME),
+) -> dict[str, bool]:
+    return {"authenticated": _valid_session(butterfly_admin_session, "butterfly-admin")}
 
 
 @app.post("/api/auth/login")
@@ -216,7 +242,24 @@ def login(request: LoginRequest, response: Response) -> dict[str, bool]:
     expires_at = int(time.time()) + AUTH_MAX_AGE_SECONDS
     response.set_cookie(
         AUTH_COOKIE_NAME,
-        _sign_session(expires_at),
+        _sign_session("butterfly", expires_at),
+        max_age=AUTH_MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=BUTTERFLY_COOKIE_SECURE,
+    )
+    return {"authenticated": True}
+
+
+@app.post("/api/admin/login", dependencies=[Depends(require_auth)])
+def admin_login(request: AdminLoginRequest, response: Response) -> dict[str, bool]:
+    if not secrets.compare_digest(request.password, BUTTERFLY_ADMIN_PASSWORD):
+        raise HTTPException(status_code=401, detail="Incorrect admin password")
+
+    expires_at = int(time.time()) + AUTH_MAX_AGE_SECONDS
+    response.set_cookie(
+        ADMIN_AUTH_COOKIE_NAME,
+        _sign_session("butterfly-admin", expires_at),
         max_age=AUTH_MAX_AGE_SECONDS,
         httponly=True,
         samesite="lax",
@@ -228,6 +271,7 @@ def login(request: LoginRequest, response: Response) -> dict[str, bool]:
 @app.post("/api/auth/logout")
 def logout(response: Response) -> dict[str, bool]:
     response.delete_cookie(AUTH_COOKIE_NAME)
+    response.delete_cookie(ADMIN_AUTH_COOKIE_NAME)
     return {"authenticated": False}
 
 
@@ -238,6 +282,11 @@ def pilot_intake(request: PilotIntakeRequest) -> dict[str, Any]:
         payload["full_name"] = None
         payload["email"] = None
     return create_pilot_submission(payload)
+
+
+@app.get("/api/pilot-submissions", dependencies=[Depends(require_admin_auth)])
+def pilot_submissions() -> list[dict[str, Any]]:
+    return list_pilot_submissions()
 
 
 @app.post("/api/analyze", dependencies=[Depends(require_auth)])
