@@ -807,8 +807,7 @@
           h("p", { className: "tiny-label" }, "Enter password"),
           h("input", { type: "password", value: password, onChange: (event) => setPassword(event.target.value), placeholder: "Butterfly password", autoFocus: true }),
           error ? h("p", { className: "auth-error" }, error) : null,
-          h("button", { className: "button button-primary", type: "submit", disabled: loading || !password }, loading ? "Opening Butterfly..." : "Open Butterfly"),
-          h("p", { className: "status" }, "For local testing, the default password is butterfly-demo unless you set BUTTERFLY_PASSWORD.")
+          h("button", { className: "button button-primary", type: "submit", disabled: loading || !password }, loading ? "Opening Butterfly..." : "Open Butterfly")
         )
       )
     );

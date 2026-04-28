@@ -47,7 +47,7 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 AUTH_COOKIE_NAME = "butterfly_session"
 ADMIN_AUTH_COOKIE_NAME = "butterfly_admin_session"
 AUTH_MAX_AGE_SECONDS = 60 * 60 * 12
-BUTTERFLY_PASSWORD = os.environ.get("BUTTERFLY_PASSWORD", "butterfly-demo")
+BUTTERFLY_PASSWORD = os.environ.get("BUTTERFLY_PASSWORD", "WBlot")
 BUTTERFLY_ADMIN_PASSWORD = os.environ.get("BUTTERFLY_ADMIN_PASSWORD", "butterfly-admin")
 BUTTERFLY_SECRET = os.environ.get("BUTTERFLY_SECRET", "local-butterfly-secret-change-on-render")
 BUTTERFLY_COOKIE_SECURE = os.environ.get("BUTTERFLY_COOKIE_SECURE", "false").lower() == "true"
