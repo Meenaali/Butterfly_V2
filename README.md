@@ -134,6 +134,17 @@ If you create a Render `Web Service` manually:
 - Vendor product pages may block scraping or change their layout.
 - Recommendations are heuristic and should be treated as decision support, not validated scientific instructions.
 
+## Pilot Testing
+
+The current frozen pilot version is tagged in Git as:
+
+- `butterfly-pilot-v1`
+
+Pilot documents in this repository:
+
+- [PILOT_TESTING_GUIDE.md](/Users/meenaali/Documents/Codex/2026-04-18-i-am-trying-to-build-an/PILOT_TESTING_GUIDE.md)
+- [PILOT_FEEDBACK_FORM.md](/Users/meenaali/Documents/Codex/2026-04-18-i-am-trying-to-build-an/PILOT_FEEDBACK_FORM.md)
+
 ## Best Production Upgrades
 
 1. Replace SQLite with Postgres.
