@@ -175,6 +175,37 @@ h1 {
   box-shadow: var(--shadow);
 }
 
+.onboarding-shell {
+  min-height: 640px;
+}
+
+.onboarding-card {
+  display: grid;
+  gap: 1rem;
+  width: min(100%, 860px);
+}
+
+.onboarding-fields {
+  background: rgba(244, 251, 246, 0.8);
+}
+
+.onboarding-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.onboarding-checkbox input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+
+.onboarding-tag-active {
+  background: rgba(45, 138, 95, 0.18);
+  border: 1px solid rgba(45, 138, 95, 0.22);
+}
+
 .auth-error {
   margin: 0;
   color: var(--bad);
@@ -668,6 +699,22 @@ textarea:focus {
 .history-stack {
   display: grid;
   gap: 0.9rem;
+}
+
+.pilot-testing-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.pilot-hero-card strong {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 1.05rem;
+  color: var(--accent-deep);
+}
+
+.pilot-support-copy {
+  margin: 0.55rem 0 0;
 }
 
 .virtual-assistant-stack {

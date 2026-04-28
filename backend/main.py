@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from .analysis import analyze_image_bytes
 from .ai_interpretation import interpret_blot_image
 from .antibody_compatibility import check_antibody_compatibility
-from .database import create_experiment, get_experiment, init_db, list_experiments, update_experiment
+from .database import create_experiment, create_pilot_submission, get_experiment, init_db, list_experiments, update_experiment
 from .documents import delete_document, index_status, rebuild_document_index, save_uploaded_document
 from .protein_first_planner import generate_protein_first_plan
 from .protein_intelligence import build_protein_intelligence
@@ -128,6 +128,16 @@ class DocumentDeleteRequest(BaseModel):
     filename: str = Field(min_length=1)
 
 
+class PilotIntakeRequest(BaseModel):
+    full_name: str | None = None
+    title: str = Field(min_length=1)
+    role: str = Field(min_length=1)
+    institution: str | None = None
+    email: str | None = None
+    experience_level: str = Field(min_length=1)
+    contact_for_follow_up: bool = True
+
+
 def _sign_session(expires_at: int) -> str:
     payload = f"butterfly:{expires_at}"
     signature = hmac.new(BUTTERFLY_SECRET.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
@@ -219,6 +229,15 @@ def login(request: LoginRequest, response: Response) -> dict[str, bool]:
 def logout(response: Response) -> dict[str, bool]:
     response.delete_cookie(AUTH_COOKIE_NAME)
     return {"authenticated": False}
+
+
+@app.post("/api/pilot-intake", dependencies=[Depends(require_auth)])
+def pilot_intake(request: PilotIntakeRequest) -> dict[str, Any]:
+    payload = request.model_dump()
+    if not payload.get("contact_for_follow_up"):
+        payload["full_name"] = None
+        payload["email"] = None
+    return create_pilot_submission(payload)
 
 
 @app.post("/api/analyze", dependencies=[Depends(require_auth)])

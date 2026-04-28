@@ -29,6 +29,15 @@ def init_db() -> None:
             )
             """
         )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pilot_submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                payload_json TEXT NOT NULL
+            )
+            """
+        )
 
 
 def list_experiments() -> list[dict[str, Any]]:
@@ -99,3 +108,27 @@ def update_experiment(experiment_id: int, title: str, payload: dict[str, Any]) -
         connection.commit()
 
     return get_experiment(experiment_id)
+
+
+def create_pilot_submission(payload: dict[str, Any]) -> dict[str, Any]:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO pilot_submissions (payload_json)
+            VALUES (?)
+            """,
+            (json.dumps(payload),),
+        )
+        submission_id = cursor.lastrowid
+        connection.commit()
+
+        row = connection.execute(
+            "SELECT id, created_at, payload_json FROM pilot_submissions WHERE id = ?",
+            (submission_id,),
+        ).fetchone()
+
+    return {
+        "id": row["id"],
+        "created_at": row["created_at"],
+        "payload": json.loads(row["payload_json"]),
+    }

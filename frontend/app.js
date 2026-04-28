@@ -56,6 +56,32 @@
     dynamic_range: "Dynamic range",
   };
 
+  const ONBOARDING_STORAGE_KEY = "butterflyPilotOnboardingComplete";
+
+  const pilotTasks = [
+    "Use Protein Intelligence with a UniProt ID or FASTA sequence.",
+    "Generate a first-pass Predictive Strategy and review the workflow cards.",
+    "Check antibody compatibility with real product URLs if available.",
+    "Log a real or recent blot in Experiment Log.",
+    "Run the final image integrity screen on a blot image if available.",
+    "Use Virtual Assistant for one troubleshooting scenario.",
+  ];
+
+  const pilotQuestions = [
+    "What was the most useful part of Butterfly?",
+    "What was confusing or missing?",
+    "Which recommendation did you trust least?",
+    "Would you use Butterfly before running a first Western blot?",
+    "Would you use Butterfly to review a failed blot?",
+  ];
+
+  const pilotFocus = [
+    "Scientific trust",
+    "Workflow clarity",
+    "Predictive strategy quality",
+    "Troubleshooting usefulness",
+  ];
+
   function App() {
     const [authChecked, setAuthChecked] = useState(false);
     const [authenticated, setAuthenticated] = useState(false);
@@ -74,6 +100,20 @@
     const [selectedId, setSelectedId] = useState(null);
     const [status, setStatus] = useState("Butterfly is ready to propose a protein-led blotting strategy.");
     const [previews, setPreviews] = useState({});
+    const [onboardingReady, setOnboardingReady] = useState(false);
+    const [onboardingComplete, setOnboardingComplete] = useState(false);
+    const [onboardingStep, setOnboardingStep] = useState(0);
+    const [onboardingLoading, setOnboardingLoading] = useState(false);
+    const [onboardingError, setOnboardingError] = useState("");
+    const [onboardingForm, setOnboardingForm] = useState({
+      full_name: "",
+      title: "",
+      role: "",
+      institution: "",
+      email: "",
+      experience_level: "PhD student / early researcher",
+      contact_for_follow_up: true,
+    });
     const [proteinIntelLoading, setProteinIntelLoading] = useState(false);
     const [antibodyCompatibilityLoading, setAntibodyCompatibilityLoading] = useState(false);
     const [troubleshootingLoading, setTroubleshootingLoading] = useState(false);
@@ -91,6 +131,12 @@
       if (authenticated) {
         fetchHistory();
         fetchIndexStatus();
+        const complete = window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "true";
+        setOnboardingComplete(complete);
+        setOnboardingReady(true);
+      } else {
+        setOnboardingReady(false);
+        setOnboardingComplete(false);
       }
     }, [authenticated]);
 
@@ -123,6 +169,7 @@
     async function logout() {
       await fetch("/api/auth/logout", { method: "POST" });
       setAuthenticated(false);
+      setOnboardingReady(false);
       setHistory([]);
       setChatMessages([]);
       setDocStatus({ document_count: 0, chunk_count: 0, documents: [] });
@@ -146,12 +193,55 @@
       setExperiment((current) => ({ ...current, [field]: value }));
     }
 
+    function updateOnboardingField(field, value) {
+      setOnboardingForm((current) => ({ ...current, [field]: value }));
+    }
+
+    async function submitOnboarding() {
+      setOnboardingLoading(true);
+      setOnboardingError("");
+      const response = await fetch("/api/pilot-intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(onboardingForm),
+      });
+      setOnboardingLoading(false);
+
+      if (!response.ok) {
+        setOnboardingError("Butterfly could not save your pilot details right now. Please try again.");
+        return false;
+      }
+
+      window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
+      setOnboardingComplete(true);
+      setOnboardingReady(true);
+      setStatus("Welcome to the Butterfly pilot.");
+      return true;
+    }
+
     if (!authChecked) {
       return h("div", { className: "app-shell" }, h("section", { className: "hero auth-hero" }, h("p", { className: "subtitle" }, "Checking Butterfly access...")));
     }
 
     if (!authenticated) {
       return h(LoginScreen, { onLogin: login });
+    }
+
+    if (!onboardingReady) {
+      return h("div", { className: "app-shell" }, h("section", { className: "hero auth-hero" }, h("p", { className: "subtitle" }, "Preparing Butterfly...")));
+    }
+
+    if (!onboardingComplete) {
+      return h(OnboardingFlow, {
+        step: onboardingStep,
+        onNext: () => setOnboardingStep((current) => Math.min(current + 1, 2)),
+        onBack: () => setOnboardingStep((current) => Math.max(current - 1, 0)),
+        onFinish: submitOnboarding,
+        form: onboardingForm,
+        updateField: updateOnboardingField,
+        loading: onboardingLoading,
+        error: onboardingError,
+      });
     }
 
     async function analyseStage(stage, file) {
@@ -1209,10 +1299,123 @@
     );
   }
 
+  function OnboardingFlow({ step, onNext, onBack, onFinish, form, updateField, loading, error }) {
+    const stepLabels = ["Welcome", "Your details", "How to test"];
+    return h(
+      "div",
+      { className: "app-shell auth-shell" },
+      h(
+        "section",
+        { className: "hero auth-hero onboarding-shell" },
+        h(
+          "div",
+          { className: "onboarding-card" },
+          h("p", { className: "eyebrow" }, `Butterfly pilot · screen ${step + 1} of 3`),
+          h("div", { className: "tag-row" }, stepLabels.map((item, index) => h("span", { className: index === step ? "tag onboarding-tag-active" : "tag", key: item }, item))),
+          step === 0
+            ? h(
+                React.Fragment,
+                null,
+                h("h1", null, "Welcome to Butterfly"),
+                h("p", { className: "subtitle" }, "Butterfly is a protein-led Western blot planning and troubleshooting tool. This pilot is designed to test whether it helps scientists reduce unnecessary optimisation, plan a better first blot, and review repeat runs more clearly."),
+                h(
+                  "div",
+                  { className: "history-stack" },
+                  h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "What Butterfly is trying to achieve"), h("p", { className: "status" }, "Turn protein intelligence, antibody evidence, experiment logging, troubleshooting support, and final image integrity review into a more usable Western blot workflow for scientists.")),
+                  h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "What this pilot is testing"), h("ul", null, h("li", null, "Whether the workflow is clear to scientists."), h("li", null, "Whether the predictive strategy feels scientifically sensible."), h("li", null, "Whether Butterfly reduces uncertainty before the first blot.")))
+                ),
+                h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onNext }, "Continue"))
+              )
+            : null,
+          step === 1
+            ? h(
+                React.Fragment,
+                null,
+                h("h1", null, "Your details"),
+                h("p", { className: "subtitle" }, "These pilot-testing details help the Butterfly developers understand who is testing the tool and, only if you agree, contact you for iteration feedback."),
+                h("div", { className: "lookup-card compact-doc" },
+                  h("p", { className: "tiny-label" }, "Privacy note"),
+                  h("p", { className: "status" }, "Your pilot intake is stored on the password-protected Butterfly backend. If you do not opt into follow-up contact, Butterfly will not retain your name or email in the pilot submission.")
+                ),
+                h(
+                  "div",
+                  { className: "field-group onboarding-fields" },
+                  h(
+                    "div",
+                    { className: "field-group-grid" },
+                    renderInput("Name or initials (optional)", form.full_name, (value) => updateField("full_name", value)),
+                    renderInput("Title", form.title, (value) => updateField("title", value)),
+                    renderInput("Role", form.role, (value) => updateField("role", value)),
+                    renderInput("Institution / lab", form.institution, (value) => updateField("institution", value)),
+                    renderInput("Email for follow-up (optional)", form.email, (value) => updateField("email", value)),
+                    renderSelect("Western blot experience", form.experience_level, (value) => updateField("experience_level", value), [["PhD student / early researcher", "PhD student / early researcher"], ["Post-doc / research fellow", "Post-doc / research fellow"], ["Technician / specialist", "Technician / specialist"], ["PI / senior scientist", "PI / senior scientist"]]),
+                    h("label", { className: "grid-span-2 onboarding-checkbox" }, h("input", { type: "checkbox", checked: form.contact_for_follow_up, onChange: (event) => updateField("contact_for_follow_up", event.target.checked) }), h("span", null, "I am happy for the Butterfly team to retain my contact details for follow-up pilot feedback."))
+                  )
+                ),
+                error ? h("p", { className: "auth-error" }, error) : null,
+                h("div", { className: "button-row" }, h("button", { className: "button button-ghost", type: "button", onClick: onBack }, "Back"), h("button", { className: "button button-primary", type: "button", onClick: onNext, disabled: !form.title || !form.role || (form.contact_for_follow_up && !form.email) }, "Continue"))
+              )
+            : null,
+          step === 2
+            ? h(
+                React.Fragment,
+                null,
+                h("h1", null, "How to test Butterfly"),
+                h("p", { className: "subtitle" }, "Please test Butterfly with one real or recent protein example if possible, and focus on scientific trust, workflow clarity, and whether the strategy is useful."),
+                h(
+                  "div",
+                  { className: "history-stack" },
+                  h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "Suggested testing flow"), h("ol", { className: "steps-list" }, pilotTasks.map((item, index) => h("li", { key: index }, item)))),
+                  h("div", { className: "lookup-card" }, h("p", { className: "tiny-label" }, "Feedback to keep in mind"), h("ul", null, pilotQuestions.map((item, index) => h("li", { key: index }, item))))
+                ),
+                error ? h("p", { className: "auth-error" }, error) : null,
+                h("div", { className: "button-row" }, h("button", { className: "button button-ghost", type: "button", onClick: onBack, disabled: loading }, "Back"), h("button", { className: "button button-primary", type: "button", onClick: onFinish, disabled: loading }, loading ? "Saving and entering Butterfly..." : "Enter Butterfly"))
+              )
+            : null
+        )
+      )
+    );
+  }
+
   function SidebarPanel({ number, history, selectedId, onLoad }) {
     return h(
       "aside",
       { className: "stack" },
+      h(
+        SectionCard,
+        { number: "07", title: "Pilot Testing", subtitle: "Use this pilot version with real scientists in a structured way and capture feedback consistently." },
+        h(
+          "div",
+          { className: "pilot-testing-stack" },
+          h(
+            "div",
+            { className: "lookup-card pilot-hero-card" },
+            h("p", { className: "tiny-label" }, "Pilot version"),
+            h("strong", null, "butterfly-pilot-v1"),
+            h("p", { className: "status" }, "Use the same frozen version for all testers in the first pilot round."),
+            h("div", { className: "tag-row" }, tag("3-5 testers"), tag("Protein-first planning"), tag("Pilot workflow"))
+          ),
+          h(
+            "div",
+            { className: "lookup-card" },
+            h("p", { className: "tiny-label" }, "Tester focus"),
+            h("div", { className: "tag-row" }, pilotFocus.map((item) => tag(item))),
+            h("p", { className: "status pilot-support-copy" }, "Ask testers to use one real or recent protein example and comment on trust, clarity, and usefulness.")
+          ),
+          h(
+            "div",
+            { className: "lookup-card" },
+            h("p", { className: "tiny-label" }, "Suggested pilot tasks"),
+            h("ol", { className: "steps-list" }, pilotTasks.map((item, index) => h("li", { key: index }, item)))
+          ),
+          h(
+            "div",
+            { className: "lookup-card" },
+            h("p", { className: "tiny-label" }, "Questions to ask testers"),
+            h("ul", null, pilotQuestions.map((item, index) => h("li", { key: index }, item)))
+          )
+        )
+      ),
       h(
         SectionCard,
         { number, title: "Experiment History", subtitle: "Saved runs become Butterfly’s internal evidence base." },
