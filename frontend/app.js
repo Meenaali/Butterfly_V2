@@ -1264,311 +1264,171 @@
 
   function BranchTree({ proteinIntelligence, onRequestDetailed, detailedPlan, detailedLoading, comparison }) {
     const [path, setPath] = useState(["root"]);
-    const [view, setView] = useState("steps");
     const currentKey = path[path.length - 1];
     const node = DTREE[currentKey] || DTREE.root;
 
     function choose(nextKey) {
       setPath((prev) => [...prev, nextKey]);
     }
-    function back() {
-      setPath((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
+    function jumpTo(index) {
+      setPath((prev) => prev.slice(0, index + 1));
     }
     function restart() {
       setPath(["root"]);
     }
 
-    // Build a flowchart-style trail of the choices made so far.
-    const trailLabels = [];
-    for (let i = 0; i < path.length - 1; i += 1) {
-      const parent = DTREE[path[i]];
-      const childKey = path[i + 1];
-      const picked = parent && parent.options && parent.options.find((o) => o.next === childKey);
-      if (picked) trailLabels.push(picked.label);
-    }
-    const trailEl = trailLabels.length
-      ? h(
-          "div",
-          { className: "dtree-trail" },
-          trailLabels.map((label, idx) =>
-            h(
-              React.Fragment,
-              { key: idx },
-              idx > 0 ? h("span", { className: "dtree-trail-sep", "aria-hidden": "true" }, "→") : null,
-              h("span", { className: "dtree-trail-chip" }, label)
-            )
-          )
-        )
-      : null;
-
-    // Find the path from root to any node (the tree has unique routes).
-    function findPath(target) {
-      const queue = [["root"]];
-      while (queue.length) {
-        const trail = queue.shift();
-        const key = trail[trail.length - 1];
-        if (key === target) return trail;
-        const candidate = DTREE[key];
-        if (candidate && candidate.options) {
-          candidate.options.forEach((option) => queue.push(trail.concat([option.next])));
-        }
-      }
-      return ["root"];
+    function stepTag(stepNode, index) {
+      if (stepNode.type === "outcome") return "Conclusion";
+      if (index === 0) return "Start here";
+      return `Question ${index}`;
     }
 
-    function pickNode(key) {
-      setPath(findPath(key));
-      setView("steps");
-    }
-
-    const viewToggle = h(
-      "div",
-      { className: "dtree-viewtoggle" },
-      h("button", { type: "button", className: view === "steps" ? "dtree-vt dtree-vt-on" : "dtree-vt", onClick: () => setView("steps") }, "Step-by-step"),
-      h("button", { type: "button", className: view === "map" ? "dtree-vt dtree-vt-on" : "dtree-vt", onClick: () => setView("map") }, "Flowchart")
-    );
-
-    if (view === "map") {
-      // Left-to-right tidy-tree layout: leaves get their own row, parents are
-      // centred over their children. Nodes are absolutely positioned; edges are
-      // drawn as SVG bezier connectors behind them.
-      const NODE_W = 212;
-      const BOX_H = 76;
-      const GAP_X = 64;
-      const ROW_STEP = 98;
-      const pos = {};
-      let rowCounter = { row: 0, maxDepth: 0 };
-      function layout(key, depth) {
-        if (depth > rowCounter.maxDepth) rowCounter.maxDepth = depth;
-        const flowNode = DTREE[key];
-        const kids = flowNode && flowNode.options ? flowNode.options.map((o) => o.next) : [];
-        const x = depth * (NODE_W + GAP_X);
-        if (!kids.length) {
-          const y = rowCounter.row * ROW_STEP;
-          rowCounter.row += 1;
-          pos[key] = { x, y };
-          return y;
-        }
-        const ys = kids.map((k) => layout(k, depth + 1));
-        const y = (ys[0] + ys[ys.length - 1]) / 2;
-        pos[key] = { x, y };
-        return y;
-      }
-      layout("root", 0);
-      const canvasW = (rowCounter.maxDepth + 1) * (NODE_W + GAP_X);
-      const canvasH = Math.max(rowCounter.row, 1) * ROW_STEP;
-
-      const edges = [];
-      const edgeLabels = [];
-      Object.keys(DTREE).forEach((key) => {
-        const flowNode = DTREE[key];
-        if (!flowNode.options) return;
-        const parent = pos[key];
-        if (!parent) return;
-        flowNode.options.forEach((option) => {
-          const child = pos[option.next];
-          if (!child) return;
-          const x1 = parent.x + NODE_W;
-          const y1 = parent.y + BOX_H / 2;
-          const x2 = child.x;
-          const y2 = child.y + BOX_H / 2;
-          const mx = (x1 + x2) / 2;
-          const onPath = path.indexOf(key) !== -1 && path.indexOf(option.next) !== -1 && path.indexOf(option.next) === path.indexOf(key) + 1;
-          edges.push(
-            h("path", {
-              key: `${key}-${option.next}`,
-              d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`,
-              className: onPath ? "flow-edge flow-edge-on" : "flow-edge",
-              fill: "none",
-            })
-          );
-          edgeLabels.push(
-            h(
-              "span",
-              { key: `lbl-${key}-${option.next}`, className: "flow-edge-label", style: { left: `${mx}px`, top: `${(y1 + y2) / 2}px` } },
-              option.label
-            )
-          );
-        });
-      });
-
-      const boxes = Object.keys(pos).map((key) => {
-        const flowNode = DTREE[key];
-        const point = pos[key];
-        const isOutcome = flowNode.type === "outcome";
-        const classes = ["flow-box"];
-        if (isOutcome) classes.push("flow-box-outcome");
-        if (path.indexOf(key) !== -1) classes.push("flow-box-onpath");
-        if (key === currentKey) classes.push("flow-box-current");
-        return h(
-          "button",
-          {
-            key,
-            type: "button",
-            className: classes.join(" "),
-            style: { left: `${point.x}px`, top: `${point.y}px`, width: `${NODE_W}px`, height: `${BOX_H}px` },
-            onClick: () => pickNode(key),
-          },
-          isOutcome ? flowNode.title : flowNode.q
-        );
-      });
-
-      return h(
-        "div",
-        { className: "dtree" },
-        viewToggle,
-        h("p", { className: "dtree-kicker" }, "Flowchart"),
-        h("h3", { className: "dtree-title" }, "The full diagnostic map"),
-        h("p", { className: "dtree-sub" }, "Every path Butterfly can take. Click any box to jump straight to it — your current position is highlighted."),
+    // Build the visual trail: every answered step, the choice made between them,
+    // and the current step. Vertical flow — focused, with no overlapping boxes.
+    const trail = [];
+    path.forEach((key, index) => {
+      const stepNode = DTREE[key];
+      if (!stepNode) return;
+      const isLast = index === path.length - 1;
+      const isOutcome = stepNode.type === "outcome";
+      const boxClasses = ["flow-step-box"];
+      if (isOutcome) boxClasses.push("flow-step-outcome");
+      if (isLast) boxClasses.push("flow-step-current");
+      trail.push(
         h(
           "div",
-          { className: "flow-scroll" },
+          { className: "flow-step", key: `step-${index}` },
+          h("span", { className: "flow-step-tag" }, stepTag(stepNode, index)),
+          h(
+            "button",
+            { type: "button", className: boxClasses.join(" "), onClick: () => jumpTo(index) },
+            isOutcome ? stepNode.title : stepNode.q
+          )
+        )
+      );
+      if (!isLast) {
+        const childKey = path[index + 1];
+        const picked = stepNode.options && stepNode.options.find((o) => o.next === childKey);
+        trail.push(
           h(
             "div",
-            { className: "flow-canvas", style: { width: `${canvasW}px`, height: `${canvasH}px` } },
-            h("svg", { className: "flow-edges", width: canvasW, height: canvasH }, edges),
-            edgeLabels,
-            boxes
+            { className: "flow-link", key: `link-${index}` },
+            h("span", { className: "flow-link-chip" }, picked ? picked.label : "")
+          )
+        );
+      }
+    });
+
+    let tail;
+    if (node.type === "question") {
+      tail = h(
+        "div",
+        { className: "flow-choose" },
+        node.why ? h("p", { className: "flow-choose-why" }, node.why) : null,
+        h(
+          "div",
+          { className: "flow-branches" },
+          node.options.map((option, idx) =>
+            h(
+              "button",
+              { key: idx, type: "button", className: "flow-branch", onClick: () => choose(option.next) },
+              h("span", { className: "flow-branch-label" }, option.label),
+              h("span", { className: "flow-branch-arrow", "aria-hidden": "true" }, "→")
+            )
+          )
+        )
+      );
+    } else {
+      const fixes = augmentFixes(currentKey, node.fixes, proteinIntelligence);
+      tail = h(
+        "div",
+        { className: "flow-conclusion" },
+        h("p", { className: "dtree-sub" }, "Ranked by how likely each is to fix your blot, based on your answers. Change one thing at a time."),
+        h(
+          "div",
+          { className: "dtree-results" },
+          fixes.map((tip, idx) =>
+            h(
+              "div",
+              { className: "dtree-result-card", key: tip.title },
+              h("span", { className: "dtree-rank" }, String(idx + 1)),
+              h(
+                "div",
+                { className: "dtree-result-body" },
+                h("strong", { className: "dtree-result-title" }, tip.title),
+                h("p", { className: "dtree-result-why" }, tip.why),
+                h(
+                  "div",
+                  { className: "dtree-meta" },
+                  h(
+                    "span",
+                    { className: "dtree-impact" },
+                    h("span", { className: "dtree-impact-track" }, h("span", { className: "dtree-impact-fill", style: { width: `${Math.round(tip.impact * 100)}%` } })),
+                    h("span", { className: "dtree-impact-text" }, impactLabel(tip.impact))
+                  ),
+                  h("span", { className: "dtree-effort" }, `Effort: ${tip.effort}`)
+                )
+              )
+            )
+          )
+        ),
+        h(
+          "div",
+          { className: "dtree-detail" },
+          detailedPlan
+            ? h(
+                React.Fragment,
+                null,
+                h("div", { className: "dtree-detail-divider" }, h("span", null, "Full analysis")),
+                h(TroubleshootingResult, { plan: detailedPlan }),
+                comparison
+                  ? h(
+                      "div",
+                      { className: "comparison-grid assistant-comparison-grid" },
+                      metricBlock("Similar runs", comparison.similarRuns),
+                      metricBlock("Best prior membrane", comparison.bestMembrane),
+                      metricBlock("Best prior blocker", comparison.bestBlocker),
+                      metricBlock("Best prior transfer", comparison.bestTransfer),
+                      h(
+                        "div",
+                        { className: "recommendation-card comparison-card-wide" },
+                        h("h3", null, "What your saved runs suggest"),
+                        h("ul", null, comparison.insights.map((item, index) => h("li", { key: index }, item)))
+                      )
+                    )
+                  : null
+              )
+            : h(
+                "p",
+                { className: "dtree-detail-hint" },
+                "Want the deeper dive? The full analysis adds the most-likely causes, a step-by-step plan, a next-run mini-experiment, and uses any image you've scanned."
+              )
+        ),
+        h(
+          "div",
+          { className: "dtree-actions" },
+          h(
+            "button",
+            {
+              type: "button",
+              className: "dtree-detail-btn",
+              onClick: () => onRequestDetailed && onRequestDetailed(node.backend || "high background"),
+              disabled: detailedLoading,
+            },
+            detailedLoading ? "Building full analysis…" : detailedPlan ? "Refresh full analysis" : "Get the full analysis"
           )
         )
       );
     }
 
-    if (node.type === "question") {
-      const isRoot = currentKey === "root";
-      return h(
-        "div",
-        { className: "dtree" },
-        viewToggle,
-        isRoot
-          ? h("p", { className: "dtree-kicker" }, "Guided troubleshooting")
-          : h(
-              "div",
-              { className: "dtree-head" },
-              h("button", { type: "button", className: "dtree-back", onClick: back }, "‹ Back"),
-              h("span", { className: "dtree-step-label" }, `Step ${path.length}`)
-            ),
-        isRoot ? null : trailEl,
-        h("h3", { className: isRoot ? "dtree-title" : "dtree-question" }, node.q),
-        h("p", { className: isRoot ? "dtree-sub" : "dtree-why" }, node.why),
-        isRoot
-          ? h(
-              "div",
-              { className: "dtree-symptom-grid" },
-              node.options.map((option, idx) =>
-                h(
-                  "button",
-                  { key: idx, type: "button", className: "dtree-symptom-card", onClick: () => choose(option.next) },
-                  h("span", { className: "dtree-symptom-label" }, option.label),
-                  h("span", { className: "dtree-symptom-arrow", "aria-hidden": "true" }, "›")
-                )
-              )
-            )
-          : h(
-              "div",
-              { className: "dtree-options" },
-              node.options.map((option, idx) =>
-                h(
-                  "button",
-                  { key: idx, type: "button", className: "dtree-option", onClick: () => choose(option.next) },
-                  h("span", { className: "dtree-option-label" }, option.label),
-                  h("span", { className: "dtree-option-arrow", "aria-hidden": "true" }, "›")
-                )
-              )
-            )
-      );
-    }
-
-    // Outcome node
-    const fixes = augmentFixes(currentKey, node.fixes, proteinIntelligence);
     return h(
       "div",
       { className: "dtree" },
-      viewToggle,
-      h(
-        "div",
-        { className: "dtree-head" },
-        h("button", { type: "button", className: "dtree-back", onClick: back }, "‹ Back"),
-        h("span", { className: "dtree-step-label" }, node.title)
-      ),
-      trailEl,
-      h("h3", { className: "dtree-title" }, "Try these, in order"),
-      h("p", { className: "dtree-sub" }, "Ranked by how likely each is to fix your blot, based on your answers. Change one thing at a time."),
-      h(
-        "div",
-        { className: "dtree-results" },
-        fixes.map((tip, idx) =>
-          h(
-            "div",
-            { className: "dtree-result-card", key: tip.title },
-            h("span", { className: "dtree-rank" }, String(idx + 1)),
-            h(
-              "div",
-              { className: "dtree-result-body" },
-              h("strong", { className: "dtree-result-title" }, tip.title),
-              h("p", { className: "dtree-result-why" }, tip.why),
-              h(
-                "div",
-                { className: "dtree-meta" },
-                h(
-                  "span",
-                  { className: "dtree-impact" },
-                  h("span", { className: "dtree-impact-track" }, h("span", { className: "dtree-impact-fill", style: { width: `${Math.round(tip.impact * 100)}%` } })),
-                  h("span", { className: "dtree-impact-text" }, impactLabel(tip.impact))
-                ),
-                h("span", { className: "dtree-effort" }, `Effort: ${tip.effort}`)
-              )
-            )
-          )
-        )
-      ),
-      h(
-        "div",
-        { className: "dtree-detail" },
-        detailedPlan
-          ? h(
-              React.Fragment,
-              null,
-              h("div", { className: "dtree-detail-divider" }, h("span", null, "Full analysis")),
-              h(TroubleshootingResult, { plan: detailedPlan }),
-              comparison
-                ? h(
-                    "div",
-                    { className: "comparison-grid assistant-comparison-grid" },
-                    metricBlock("Similar runs", comparison.similarRuns),
-                    metricBlock("Best prior membrane", comparison.bestMembrane),
-                    metricBlock("Best prior blocker", comparison.bestBlocker),
-                    metricBlock("Best prior transfer", comparison.bestTransfer),
-                    h(
-                      "div",
-                      { className: "recommendation-card comparison-card-wide" },
-                      h("h3", null, "What your saved runs suggest"),
-                      h("ul", null, comparison.insights.map((item, index) => h("li", { key: index }, item)))
-                    )
-                  )
-                : null
-            )
-          : h(
-              "p",
-              { className: "dtree-detail-hint" },
-              "Want the deeper dive? The full analysis adds the most-likely causes, a step-by-step plan, a next-run mini-experiment, and uses any image or documents you've added."
-            )
-      ),
-      h(
-        "div",
-        { className: "dtree-actions" },
-        h(
-          "button",
-          {
-            type: "button",
-            className: "dtree-detail-btn",
-            onClick: () => onRequestDetailed && onRequestDetailed(node.backend || "high background"),
-            disabled: detailedLoading,
-          },
-          detailedLoading ? "Building full analysis…" : detailedPlan ? "Refresh full analysis" : "Get the full analysis"
-        ),
-        h("button", { type: "button", className: "dtree-restart", onClick: restart }, "Start over")
-      )
+      h("p", { className: "dtree-kicker" }, "Guided troubleshooting"),
+      h("h3", { className: "dtree-title" }, "Follow the trail to a fix"),
+      h("p", { className: "dtree-sub" }, "Answer each question — your choices map out below until Butterfly reaches the most likely fixes. Tap any earlier step to change your answer."),
+      h("div", { className: "flow-trail" }, trail, tail),
+      h("div", { className: "flow-restart-row" }, h("button", { type: "button", className: "dtree-restart", onClick: restart }, "Start over"))
     );
   }
 
