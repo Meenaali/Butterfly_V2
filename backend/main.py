@@ -414,4 +414,9 @@ app.mount("/assets", StaticFiles(directory=FRONTEND_DIR), name="assets")
 
 @app.get("/")
 def frontend() -> FileResponse:
-    return FileResponse(FRONTEND_DIR / "index.html")
+    # Never cache the HTML shell so browsers always fetch the current asset
+    # versions (prevents stale/blank pages after a deploy).
+    return FileResponse(
+        FRONTEND_DIR / "index.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+    )
