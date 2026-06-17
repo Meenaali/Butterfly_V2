@@ -1185,6 +1185,17 @@
           ],
         },
         {
+          id: "voltage",
+          q: "Did you run the gel at high voltage, or did it get warm during the run?",
+          why: "Excess voltage overheats the gel, which distorts and smears bands (and causes 'smiling' lanes).",
+          options: [
+            { label: "Yes — high voltage / ran warm", tips: [
+              { title: "Lower the run voltage and keep the gel cool", why: "High voltage overheats the gel and smears/distorts bands; run slower, in cold buffer, or on ice.", impact: 0.72, effort: "Trivial" },
+            ] },
+            { label: "No — moderate, stayed cool", tips: [] },
+          ],
+        },
+        {
           id: "salt",
           q: "Could the sample have high salt or nucleic-acid contamination?",
           why: "Salt and DNA/RNA distort migration and cause smearing.",
