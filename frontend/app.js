@@ -84,6 +84,7 @@
     const [docActionLoading, setDocActionLoading] = useState(false);
     const [proteinFirstLoading, setProteinFirstLoading] = useState(false);
     const [assistantScanLoading, setAssistantScanLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState("intel");
 
     useEffect(() => {
       checkAuth();
@@ -582,94 +583,115 @@
       setStatus("Started a fresh Butterfly experiment.");
     }
 
+    const tabs = [
+      ["intel", "Protein Intelligence"],
+      ["strategy", "WB Predictive Strategy"],
+      ["antibody", "Antibody Compatibility"],
+      ["log", "Experiment Log"],
+      ["integrity", "Image Integrity"],
+      ["assistant", "Virtual Assistant"],
+      ["history", "History"],
+    ];
+
+    let panel = null;
+    if (activeTab === "intel") {
+      panel = h(ProteinIntelligenceSection, {
+        number: "01",
+        experiment,
+        updateField,
+        proteinIntelligence,
+        onFetchProteinIntelligence: fetchProteinIntelligence,
+        onGenerateProteinFirstPlan: generateProteinFirstPlan,
+        proteinIntelLoading,
+        proteinFirstLoading,
+      });
+    } else if (activeTab === "strategy") {
+      panel = h(PredictedStrategySection, {
+        number: "02",
+        experiment,
+        strategyReady,
+        recommendations,
+        proteinFirstPlan,
+        proteinIntelligence,
+        onGenerate: generateProteinFirstPlan,
+        onSave: saveExperiment,
+        onReset: startNew,
+        selectedId,
+        status,
+        proteinFirstLoading,
+      });
+    } else if (activeTab === "antibody") {
+      panel = h(AntibodyCompatibilitySection, {
+        number: "03",
+        experiment,
+        updateField,
+        antibodyCompatibility,
+        onCheck: checkAntibodyCompatibility,
+        loading: antibodyCompatibilityLoading,
+      });
+    } else if (activeTab === "log") {
+      panel = h(ExperimentLogSection, {
+        number: "04",
+        experiment,
+        updateField,
+        analyses,
+        previews,
+        onUpload: analyseStage,
+        onAIInterpret: generateAIInterpretation,
+        aiInterpretations,
+        aiLoadingStage,
+      });
+    } else if (activeTab === "integrity") {
+      panel = h(FinalIntegritySection, {
+        number: "05",
+        finalAnalysis: analyses.final,
+        preview: previews.final,
+        integrity: recommendations.integrity,
+        onUpload: analyseStage,
+        onAIInterpret: generateAIInterpretation,
+        aiInterpretation: aiInterpretations.final,
+        aiLoadingStage,
+      });
+    } else if (activeTab === "assistant") {
+      panel = h(VirtualAssistantSection, {
+        number: "06",
+        experiment,
+        updateField,
+        analyses,
+        comparison,
+        troubleshootingPlan,
+        onGenerate: generateTroubleshootingPlan,
+        loading: troubleshootingLoading,
+        docStatus,
+        onUploadDocuments: uploadDocuments,
+        docUploadLoading,
+        proteinIntelligence,
+        onScanImage: scanAssistantImage,
+        scanLoading: assistantScanLoading,
+        scanResult: aiInterpretations.final,
+        scanPreview: previews.final,
+      });
+    } else if (activeTab === "history") {
+      panel = h(SidebarPanel, { history, selectedId, onLoad: loadExperiment });
+    }
+
     return h(
       "div",
       { className: "app-shell" },
       h(Hero, { experimentCount: history.length, finalIntegrityReady, onLogout: logout }),
       h(
         "div",
-        { className: "layout" },
-        h(
-          "div",
-          { className: "stack" },
-          h(ProteinIntelligenceSection, {
-            number: "01",
-            experiment,
-            updateField,
-            proteinIntelligence,
-            onFetchProteinIntelligence: fetchProteinIntelligence,
-            onGenerateProteinFirstPlan: generateProteinFirstPlan,
-            proteinIntelLoading,
-            proteinFirstLoading,
-          }),
-          h(PredictedStrategySection, {
-            number: "02",
-            experiment,
-            strategyReady,
-            recommendations,
-            proteinFirstPlan,
-            proteinIntelligence,
-            onGenerate: generateProteinFirstPlan,
-            onSave: saveExperiment,
-            onReset: startNew,
-            selectedId,
-            status,
-            proteinFirstLoading,
-          }),
-          h(AntibodyCompatibilitySection, {
-            number: "03",
-            experiment,
-            updateField,
-            antibodyCompatibility,
-            onCheck: checkAntibodyCompatibility,
-            loading: antibodyCompatibilityLoading,
-          }),
-          h(ExperimentLogSection, {
-            number: "04",
-            experiment,
-            updateField,
-            analyses,
-            previews,
-            onUpload: analyseStage,
-            onAIInterpret: generateAIInterpretation,
-            aiInterpretations,
-            aiLoadingStage,
-          }),
-          h(FinalIntegritySection, {
-            number: "05",
-            finalAnalysis: analyses.final,
-            preview: previews.final,
-            integrity: recommendations.integrity,
-            onUpload: analyseStage,
-            onAIInterpret: generateAIInterpretation,
-            aiInterpretation: aiInterpretations.final,
-            aiLoadingStage,
-          }),
-          h(VirtualAssistantSection, {
-            number: "06",
-            experiment,
-            updateField,
-            analyses,
-            comparison,
-            troubleshootingPlan,
-            onGenerate: generateTroubleshootingPlan,
-            loading: troubleshootingLoading,
-            docStatus,
-            onUploadDocuments: uploadDocuments,
-            docUploadLoading,
-            proteinIntelligence,
-            onScanImage: scanAssistantImage,
-            scanLoading: assistantScanLoading,
-            scanResult: aiInterpretations.final,
-            scanPreview: previews.final,
-          })
-        ),
-        h(SidebarPanel, {
-          history,
-          selectedId,
-          onLoad: loadExperiment,
-        })
-      )
+        { className: "tabbar" },
+        tabs.map(([key, label], idx) =>
+          h(
+            "button",
+            { key, type: "button", className: activeTab === key ? "tabbtn tabbtn-on" : "tabbtn", onClick: () => setActiveTab(key) },
+            h("span", { className: "tabbtn-num" }, String(idx + 1)),
+            h("span", { className: "tabbtn-label" }, label)
+          )
+        )
+      ),
+      h("div", { className: "tab-panel" }, panel)
     );
   }
 
@@ -1683,10 +1705,19 @@
 
   // Interactive 3D AlphaFold structure. The 3Dmol library is loaded on demand
   // and every interaction is guarded so a failure can never break the page.
-  function StructureViewer({ alphafold, accession }) {
+  function StructureViewer({ alphafold, accession, highlight }) {
     const ref = useRef(null);
+    const viewerObj = useRef(null);
     const [status, setStatus] = useState("loading");
     const pdbUrl = alphafold && alphafold.pdb_url;
+
+    function applyStyle(viewer, hl) {
+      viewer.setStyle({}, { cartoon: { colorscheme: { prop: "b", gradient: "roygb", min: 50, max: 90 }, opacity: hl ? 0.55 : 1 } });
+      if (hl && hl.begin && hl.end) {
+        viewer.setStyle({ resi: `${hl.begin}-${hl.end}` }, { cartoon: { color: "0xc026d3", opacity: 1 } });
+      }
+      viewer.render();
+    }
 
     useEffect(() => {
       if (!pdbUrl) {
@@ -1695,6 +1726,7 @@
       }
       let cancelled = false;
       setStatus("loading");
+      viewerObj.current = null;
 
       function render3D() {
         try {
@@ -1716,6 +1748,7 @@
               viewer.setStyle({}, { cartoon: { colorscheme: { prop: "b", gradient: "roygb", min: 50, max: 90 } } });
               viewer.zoomTo();
               viewer.render();
+              viewerObj.current = viewer;
               setStatus("ready");
             })
             .catch(() => {
@@ -1752,6 +1785,16 @@
         script.removeEventListener("error", onError);
       };
     }, [pdbUrl]);
+
+    // Re-colour to highlight the selected domain on the fold.
+    useEffect(() => {
+      if (status !== "ready" || !viewerObj.current) return;
+      try {
+        applyStyle(viewerObj.current, highlight);
+      } catch (err) {
+        /* viewer not ready / disposed — ignore */
+      }
+    }, [highlight, status]);
 
     if (!pdbUrl) {
       return h(
@@ -1800,7 +1843,7 @@
 
   // Data-driven 1D domain / topology map built from UniProt/EBI positional
   // features — N-terminus on the left, C-terminus on the right.
-  function DomainMap({ proteinIntelligence }) {
+  function DomainMap({ proteinIntelligence, selected, onSelect }) {
     const identity = proteinIntelligence.uniprot || {};
     const chemistry = proteinIntelligence.chemistry || {};
     const length = Number(identity.sequence_length || chemistry.sequence_length || 0);
@@ -1812,52 +1855,65 @@
 
     if (!length) return null;
 
+    const isSelected = (f) => selected && selected.begin === f.begin && selected.end === f.end && selected.type === f.type;
+    const toggle = (f) => {
+      if (!onSelect) return;
+      onSelect(isSelected(f) ? null : f);
+    };
+
     // One lane per feature type for a clean, non-overlapping track view.
     const types = [];
     features.forEach((f) => {
       if (types.indexOf(f.type) === -1) types.push(f.type);
     });
 
-    const W = 820;
-    const leftPad = 132;
-    const rightPad = 24;
-    const topPad = 30;
-    const laneH = 22;
-    const laneGap = 10;
+    const W = 960;
+    const leftPad = 140;
+    const rightPad = 28;
+    const topPad = 34;
+    const laneH = 26;
+    const laneGap = 12;
     const innerW = W - leftPad - rightPad;
-    const H = topPad + Math.max(types.length, 1) * (laneH + laneGap) + 14;
+    const H = topPad + Math.max(types.length, 1) * (laneH + laneGap) + 16;
     const xOf = (res) => leftPad + ((res - 1) / Math.max(1, length - 1)) * innerW;
 
     const ticks = [1, Math.round(length * 0.25), Math.round(length * 0.5), Math.round(length * 0.75), length];
 
     const svgChildren = [];
-    // Axis ticks
     ticks.forEach((t, i) => {
-      svgChildren.push(h("line", { key: `tl-${i}`, x1: xOf(t), y1: topPad - 8, x2: xOf(t), y2: topPad - 3, stroke: "rgba(0,0,0,0.25)" }));
-      svgChildren.push(h("text", { key: `tt-${i}`, x: xOf(t), y: topPad - 12, textAnchor: "middle", className: "domain-tick" }, String(t)));
+      svgChildren.push(h("line", { key: `tl-${i}`, x1: xOf(t), y1: topPad - 9, x2: xOf(t), y2: topPad - 4, stroke: "rgba(0,0,0,0.25)" }));
+      svgChildren.push(h("text", { key: `tt-${i}`, x: xOf(t), y: topPad - 13, textAnchor: "middle", className: "domain-tick" }, String(t)));
     });
-    // N / C terminus labels
-    svgChildren.push(h("text", { key: "nterm", x: leftPad, y: topPad + 4, textAnchor: "start", className: "domain-term" }, "N"));
-    svgChildren.push(h("text", { key: "cterm", x: leftPad + innerW, y: topPad + 4, textAnchor: "end", className: "domain-term" }, "C"));
+    svgChildren.push(h("text", { key: "nterm", x: leftPad, y: topPad + 6, textAnchor: "start", className: "domain-term" }, "N"));
+    svgChildren.push(h("text", { key: "cterm", x: leftPad + innerW, y: topPad + 6, textAnchor: "end", className: "domain-term" }, "C"));
 
     types.forEach((type, laneIdx) => {
-      const laneY = topPad + 10 + laneIdx * (laneH + laneGap);
-      // lane label
-      svgChildren.push(h("text", { key: `lab-${laneIdx}`, x: leftPad - 10, y: laneY + laneH / 2 + 4, textAnchor: "end", className: "domain-lane-label" }, featureLabel(type)));
-      // baseline
+      const laneY = topPad + 12 + laneIdx * (laneH + laneGap);
+      svgChildren.push(h("text", { key: `lab-${laneIdx}`, x: leftPad - 12, y: laneY + laneH / 2 + 4, textAnchor: "end", className: "domain-lane-label" }, featureLabel(type)));
       svgChildren.push(h("rect", { key: `base-${laneIdx}`, x: leftPad, y: laneY + laneH / 2 - 1, width: innerW, height: 2, fill: "rgba(15,90,66,0.12)" }));
       features
         .filter((f) => f.type === type)
         .forEach((f, i) => {
           const x1 = xOf(f.begin);
           const x2 = xOf(f.end);
-          const segW = Math.max(3, x2 - x1);
+          const segW = Math.max(4, x2 - x1);
+          const sel = isSelected(f);
           svgChildren.push(
             h(
               "g",
-              { key: `seg-${laneIdx}-${i}` },
+              { key: `seg-${laneIdx}-${i}`, className: "domain-seg", onClick: () => toggle(f), style: { cursor: "pointer" } },
               h("title", null, `${featureLabel(f.type)} · ${f.begin}–${f.end}${f.description ? `: ${f.description}` : ""}`),
-              h("rect", { x: x1, y: laneY, width: segW, height: laneH, rx: 4, fill: featureColor(type), opacity: 0.9 })
+              h("rect", {
+                x: x1,
+                y: laneY,
+                width: segW,
+                height: laneH,
+                rx: 5,
+                fill: featureColor(type),
+                opacity: selected && !sel ? 0.4 : 0.92,
+                stroke: sel ? "#0f5a42" : "none",
+                strokeWidth: sel ? 2.5 : 0,
+              })
             )
           );
         });
@@ -1867,14 +1923,36 @@
       "div",
       { className: "intel-apple-card domain-card" },
       h("p", { className: "intel-why-kicker" }, "Sequence & domain map"),
-      h("p", { className: "domain-sub" }, `${length} residues · N-terminus (left) → C-terminus (right)`),
+      h("p", { className: "domain-sub" }, `${length} residues · N-terminus (left) → C-terminus (right) · click a feature to highlight it on the 3D fold below`),
       features.length
         ? h(
             "div",
             { className: "domain-map-scroll" },
             h("svg", { viewBox: `0 0 ${W} ${H}`, className: "domain-map-svg", preserveAspectRatio: "xMidYMid meet" }, svgChildren)
           )
-        : h("p", { className: "domain-empty" }, "No positional domain or topology features were returned for this entry — the chain length is shown above for context.")
+        : h("p", { className: "domain-empty" }, "No positional domain or topology features were returned for this entry — the chain length is shown above for context."),
+      selected
+        ? h(
+            "div",
+            { className: "domain-readout" },
+            h("span", { className: "domain-readout-dot", style: { background: featureColor(selected.type) } }),
+            h("strong", null, `${featureLabel(selected.type)} · residues ${selected.begin}–${selected.end}`),
+            selected.description ? h("span", { className: "domain-readout-desc" }, ` — ${selected.description}`) : null
+          )
+        : null
+    );
+  }
+
+  // Combines the interactive domain map (top, full width) with the 3D fold
+  // (beneath). Selecting a feature on the map highlights it on the structure.
+  function StructurePanel({ proteinIntelligence }) {
+    const [selected, setSelected] = useState(null);
+    const af = proteinIntelligence.alphafold || {};
+    return h(
+      "div",
+      { className: "intel-structure-stack" },
+      h(DomainMap, { proteinIntelligence, selected, onSelect: setSelected }),
+      h(StructureViewer, { alphafold: af, accession: proteinIntelligence.resolved_accession, highlight: selected })
     );
   }
 
@@ -1915,12 +1993,7 @@
       "div",
       { className: "intel-results" },
       af.available || seqLength
-        ? h(
-            "div",
-            { className: "intel-structure-grid" },
-            h(StructureViewer, { alphafold: af, accession: proteinIntelligence.resolved_accession }),
-            h(DomainMap, { proteinIntelligence })
-          )
+        ? h(StructurePanel, { proteinIntelligence })
         : null,
       h("div", { className: "metric-grid" }, metricBlock("Accession", proteinIntelligence.resolved_accession || "Not resolved"), metricBlock("Predicted pI", chemistry.theoretical_pI ?? "n/a"), metricBlock("MW (kDa)", chemistry.molecular_weight_kda ?? "n/a"), metricBlock("AlphaFold pLDDT", proteinIntelligence.alphafold?.mean_plddt ?? "n/a"), metricBlock("Membrane retention risk", chemistry.membrane_retention_risk ?? "n/a"), metricBlock("Aggregation risk", chemistry.aggregation_risk ?? "n/a")),
       insights.length
