@@ -325,14 +325,20 @@
       setStatus(`Antibody compatibility: ${payload.status}.`);
     }
 
-    async function generateTroubleshootingPlan() {
+    async function generateTroubleshootingPlan(symptomOverride) {
+      const symptom = (typeof symptomOverride === "string" && symptomOverride)
+        ? symptomOverride
+        : (experiment.troubleshooting_symptom || "high background");
+      if (typeof symptomOverride === "string" && symptomOverride) {
+        updateField("troubleshooting_symptom", symptomOverride);
+      }
       setTroubleshootingLoading(true);
-      setStatus("Building troubleshooting decision tree...");
+      setStatus("Building the full analysis...");
       const response = await fetch("/api/troubleshooting", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          symptom: experiment.troubleshooting_symptom || "high background",
+          symptom,
           experiment,
           analyses,
           protein_intelligence: proteinIntelligence || {},
@@ -342,13 +348,13 @@
       setTroubleshootingLoading(false);
 
       if (!response.ok) {
-        setStatus("Troubleshooting plan failed.");
+        setStatus("Full analysis could not be generated.");
         return;
       }
 
       const payload = await response.json();
       setTroubleshootingPlan(payload);
-      setStatus(`Troubleshooting plan ready for ${payload.symptom}.`);
+      setStatus(`Full analysis ready for ${payload.symptom}.`);
     }
 
     async function generateAIInterpretation(stage) {
@@ -938,60 +944,41 @@
         number,
         title: "Virtual Assistant",
         subtitle:
-          "Use the final stage for guided support. Butterfly combines the experiment log, uploaded image analysis, protein chemistry, saved runs, and uploaded supporting documents into practical troubleshooting support.",
+          "Tell Butterfly what your blot looks like. It guides you through a few questions, ranks the most likely fixes, then — if you want — builds a full analysis using your images, protein chemistry, saved runs, and any documents you add.",
       },
       h(
         "div",
         { className: "virtual-assistant-stack" },
-        h(DecisionTree, { proteinIntelligence }),
-        h("div", { className: "dtree-divider" }, h("span", null, "Or use the detailed assistant")),
         h(
-        "div",
-        { className: "upload-card assistant-upload-card" },
-        h("label", null, "Upload supporting PDFs, TXT, or Markdown"),
-        h("input", { type: "file", accept: ".pdf,.txt,.md,text/plain,application/pdf,text/markdown", multiple: true, onChange: (event) => onUploadDocuments(event.target.files) }),
-        h("div", { className: "tiny-label" }, docUploadLoading ? "Uploading..." : "Upload protocols, datasheets, or troubleshooting notes if you want Butterfly to use your own supporting material.")
-      ),
-        h(
-          "div",
-          { className: "lookup-card assistant-context-card" },
-          h("p", { className: "tiny-label" }, "What Butterfly is using"),
-          h("strong", null, imageEvidence.title),
-          h("p", { className: "status" }, imageEvidence.copy)
-        ),
-        h(
-          "div",
-          { className: "grid assistant-input-grid" },
-          renderSelect("Observed problem", experiment.troubleshooting_symptom, (value) => updateField("troubleshooting_symptom", value), [
-            ["high background", "High background"],
-            ["ghost bands", "Ghost bands"],
-            ["non-specific bands", "Non-specific bands"],
-            ["weak signal", "Weak signal"],
-            ["no signal", "No signal"],
-            ["smearing", "Smearing"],
-          ]),
-          renderSelect("Target abundance context", experiment.target_abundance_class, (value) => updateField("target_abundance_class", value), [["very low", "Very low"], ["low", "Low"], ["moderate", "Moderate"], ["high", "High"], ["very high", "Very high"]])
-        ),
-        h("div", { className: "button-row assistant-button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: loading }, loading ? "Building assistant support..." : "Generate assistant support")),
-        comparison
-          ? h(
+          "details",
+          { className: "assistant-optional" },
+          h("summary", null, "Optional context — improves the full analysis"),
+          h(
+            "div",
+            { className: "assistant-optional-body" },
+            h(
               "div",
-              { className: "comparison-grid assistant-comparison-grid" },
-              metricBlock("Similar runs", comparison.similarRuns),
-              metricBlock("Best prior membrane", comparison.bestMembrane),
-              metricBlock("Best prior blocker", comparison.bestBlocker),
-              metricBlock("Best prior transfer", comparison.bestTransfer),
-              h(
-                "div",
-                { className: "recommendation-card comparison-card-wide" },
-                h("h3", null, "What saved runs suggest"),
-                h("ul", null, comparison.insights.map((item, index) => h("li", { key: index }, item)))
-              )
+              { className: "upload-card assistant-upload-card" },
+              h("label", null, "Upload supporting PDFs, TXT, or Markdown"),
+              h("input", { type: "file", accept: ".pdf,.txt,.md,text/plain,application/pdf,text/markdown", multiple: true, onChange: (event) => onUploadDocuments(event.target.files) }),
+              h("div", { className: "tiny-label" }, docUploadLoading ? "Uploading..." : "Add protocols, datasheets, or notes for Butterfly to use in the full analysis.")
+            ),
+            h(
+              "div",
+              { className: "lookup-card assistant-context-card" },
+              h("p", { className: "tiny-label" }, "What Butterfly is using"),
+              h("strong", null, imageEvidence.title),
+              h("p", { className: "status" }, imageEvidence.copy)
             )
-          : null,
-        troubleshootingPlan
-          ? h(TroubleshootingResult, { plan: troubleshootingPlan })
-          : h("div", { className: "empty-state" }, "Upload optional gel, transfer, or final blot images in the Experiment Log first if you want Butterfly to use image metrics such as background spread, contrast, saturation, asymmetry, and lane variation.")
+          )
+        ),
+        h(DecisionTree, {
+          proteinIntelligence,
+          onRequestDetailed: onGenerate,
+          detailedPlan: troubleshootingPlan,
+          detailedLoading: loading,
+          comparison,
+        })
       )
     );
   }
@@ -1256,7 +1243,14 @@
     return "Worth trying";
   }
 
-  function DecisionTree({ proteinIntelligence }) {
+  const SYMPTOM_BACKEND = {
+    faint: "weak signal",
+    background: "high background",
+    extra: "non-specific bands",
+    smearing: "smearing",
+  };
+
+  function DecisionTree({ proteinIntelligence, onRequestDetailed, detailedPlan, detailedLoading, comparison }) {
     const [symptomKey, setSymptomKey] = useState(null);
     const [answers, setAnswers] = useState({});
     const [stepIndex, setStepIndex] = useState(0);
@@ -1388,9 +1382,55 @@
                 )
               )
             )
-          : h("div", { className: "empty-state" }, "No specific fixes matched — try the detailed assistant below.")
+          : h("div", { className: "empty-state" }, "No specific fixes matched — generate the full analysis below.")
       ),
-      h("div", { className: "dtree-restart-row" }, h("button", { type: "button", className: "dtree-restart", onClick: restart }, "Start over"))
+      h(
+        "div",
+        { className: "dtree-detail" },
+        detailedPlan
+          ? h(
+              React.Fragment,
+              null,
+              h("div", { className: "dtree-detail-divider" }, h("span", null, "Full analysis")),
+              h(TroubleshootingResult, { plan: detailedPlan }),
+              comparison
+                ? h(
+                    "div",
+                    { className: "comparison-grid assistant-comparison-grid" },
+                    metricBlock("Similar runs", comparison.similarRuns),
+                    metricBlock("Best prior membrane", comparison.bestMembrane),
+                    metricBlock("Best prior blocker", comparison.bestBlocker),
+                    metricBlock("Best prior transfer", comparison.bestTransfer),
+                    h(
+                      "div",
+                      { className: "recommendation-card comparison-card-wide" },
+                      h("h3", null, "What your saved runs suggest"),
+                      h("ul", null, comparison.insights.map((item, index) => h("li", { key: index }, item)))
+                    )
+                  )
+                : null
+            )
+          : h(
+              "p",
+              { className: "dtree-detail-hint" },
+              "Want the deeper dive? The full analysis adds the most-likely causes, a step-by-step decision tree, a next-run mini-experiment plan, and uses any images or documents you've added."
+            )
+      ),
+      h(
+        "div",
+        { className: "dtree-actions" },
+        h(
+          "button",
+          {
+            type: "button",
+            className: "dtree-detail-btn",
+            onClick: () => onRequestDetailed && onRequestDetailed(SYMPTOM_BACKEND[symptomKey] || "high background"),
+            disabled: detailedLoading,
+          },
+          detailedLoading ? "Building full analysis…" : detailedPlan ? "Refresh full analysis" : "Get the full analysis"
+        ),
+        h("button", { type: "button", className: "dtree-restart", onClick: restart }, "Start over")
+      )
     );
   }
 
