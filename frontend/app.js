@@ -1321,29 +1321,6 @@
       setView("steps");
     }
 
-    function renderFlowNode(key, connectorLabel) {
-      const flowNode = DTREE[key];
-      if (!flowNode) return null;
-      const isOutcome = flowNode.type === "outcome";
-      const classes = ["flow-node-btn"];
-      if (isOutcome) classes.push("flow-node-outcome");
-      if (path.indexOf(key) !== -1) classes.push("flow-node-onpath");
-      if (key === currentKey) classes.push("flow-node-current");
-      return h(
-        "div",
-        { className: "flow-node-wrap", key },
-        connectorLabel ? h("span", { className: "flow-conn" }, connectorLabel) : null,
-        h(
-          "button",
-          { type: "button", className: classes.join(" "), onClick: () => pickNode(key) },
-          isOutcome ? flowNode.title : flowNode.q
-        ),
-        flowNode.options
-          ? h("div", { className: "flow-children" }, flowNode.options.map((option) => renderFlowNode(option.next, option.label)))
-          : null
-      );
-    }
-
     const viewToggle = h(
       "div",
       { className: "dtree-viewtoggle" },
@@ -1352,14 +1329,108 @@
     );
 
     if (view === "map") {
+      // Left-to-right tidy-tree layout: leaves get their own row, parents are
+      // centred over their children. Nodes are absolutely positioned; edges are
+      // drawn as SVG bezier connectors behind them.
+      const NODE_W = 212;
+      const BOX_H = 76;
+      const GAP_X = 64;
+      const ROW_STEP = 98;
+      const pos = {};
+      let rowCounter = { row: 0, maxDepth: 0 };
+      function layout(key, depth) {
+        if (depth > rowCounter.maxDepth) rowCounter.maxDepth = depth;
+        const flowNode = DTREE[key];
+        const kids = flowNode && flowNode.options ? flowNode.options.map((o) => o.next) : [];
+        const x = depth * (NODE_W + GAP_X);
+        if (!kids.length) {
+          const y = rowCounter.row * ROW_STEP;
+          rowCounter.row += 1;
+          pos[key] = { x, y };
+          return y;
+        }
+        const ys = kids.map((k) => layout(k, depth + 1));
+        const y = (ys[0] + ys[ys.length - 1]) / 2;
+        pos[key] = { x, y };
+        return y;
+      }
+      layout("root", 0);
+      const canvasW = (rowCounter.maxDepth + 1) * (NODE_W + GAP_X);
+      const canvasH = Math.max(rowCounter.row, 1) * ROW_STEP;
+
+      const edges = [];
+      const edgeLabels = [];
+      Object.keys(DTREE).forEach((key) => {
+        const flowNode = DTREE[key];
+        if (!flowNode.options) return;
+        const parent = pos[key];
+        if (!parent) return;
+        flowNode.options.forEach((option) => {
+          const child = pos[option.next];
+          if (!child) return;
+          const x1 = parent.x + NODE_W;
+          const y1 = parent.y + BOX_H / 2;
+          const x2 = child.x;
+          const y2 = child.y + BOX_H / 2;
+          const mx = (x1 + x2) / 2;
+          const onPath = path.indexOf(key) !== -1 && path.indexOf(option.next) !== -1 && path.indexOf(option.next) === path.indexOf(key) + 1;
+          edges.push(
+            h("path", {
+              key: `${key}-${option.next}`,
+              d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`,
+              className: onPath ? "flow-edge flow-edge-on" : "flow-edge",
+              fill: "none",
+            })
+          );
+          edgeLabels.push(
+            h(
+              "span",
+              { key: `lbl-${key}-${option.next}`, className: "flow-edge-label", style: { left: `${mx}px`, top: `${(y1 + y2) / 2}px` } },
+              option.label
+            )
+          );
+        });
+      });
+
+      const boxes = Object.keys(pos).map((key) => {
+        const flowNode = DTREE[key];
+        const point = pos[key];
+        const isOutcome = flowNode.type === "outcome";
+        const classes = ["flow-box"];
+        if (isOutcome) classes.push("flow-box-outcome");
+        if (path.indexOf(key) !== -1) classes.push("flow-box-onpath");
+        if (key === currentKey) classes.push("flow-box-current");
+        return h(
+          "button",
+          {
+            key,
+            type: "button",
+            className: classes.join(" "),
+            style: { left: `${point.x}px`, top: `${point.y}px`, width: `${NODE_W}px`, height: `${BOX_H}px` },
+            onClick: () => pickNode(key),
+          },
+          isOutcome ? flowNode.title : flowNode.q
+        );
+      });
+
       return h(
         "div",
         { className: "dtree" },
         viewToggle,
         h("p", { className: "dtree-kicker" }, "Flowchart"),
         h("h3", { className: "dtree-title" }, "The full diagnostic map"),
-        h("p", { className: "dtree-sub" }, "Every path Butterfly can take. Click any step to jump straight to it — your current position is highlighted."),
-        h("div", { className: "flow-map" }, renderFlowNode("root", null))
+        h("p", { className: "dtree-sub" }, "Every path Butterfly can take. Click any box to jump straight to it — your current position is highlighted."),
+        h(
+          "div",
+          { className: "flow-scroll" },
+          h(
+            "div",
+            { className: "flow-canvas", style: { width: `${canvasW}px`, height: `${canvasH}px` } },
+            h("svg", { className: "flow-edges", width: canvasW, height: canvasH }, edges),
+            edgeLabels,
+            boxes
+          )
+        )
       );
     }
 
