@@ -200,10 +200,15 @@ def _feature_summary(feature_payload: dict[str, Any]) -> dict[str, Any]:
     features = feature_payload.get("features", [])
     counts: dict[str, int] = {}
     examples = []
+    positional_types = {
+        "TRANSMEM", "INTRAMEM", "SIGNAL", "DOMAIN", "DNA_BIND", "TOPO_DOM",
+        "REGION", "REPEAT", "COILED", "ZN_FING", "MOTIF", "CHAIN", "PEPTIDE",
+        "PROPEP", "TRANSIT",
+    }
     for feature in features:
         feature_type = feature.get("type", "UNKNOWN")
         counts[feature_type] = counts.get(feature_type, 0) + 1
-        if len(examples) < 8 and feature_type in {"TRANSMEM", "INTRAMEM", "SIGNAL", "DOMAIN", "DNA_BIND", "TOPO_DOM", "REGION"}:
+        if len(examples) < 80 and feature_type in positional_types:
             examples.append(
                 {
                     "type": feature_type,

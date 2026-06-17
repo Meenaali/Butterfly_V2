@@ -1,6 +1,6 @@
 (function () {
   const h = React.createElement;
-  const { useEffect, useMemo, useState } = React;
+  const { useEffect, useMemo, useState, useRef } = React;
   const root = ReactDOM.createRoot(document.getElementById("root"));
 
   const defaultExperiment = {
@@ -768,23 +768,36 @@
           }),
           h(
             "div",
+            { className: "intel-required-note" },
+            h("strong", null, "To begin, give Butterfly one of two things:"),
+            " a ", h("span", { className: "intel-req-em" }, "UniProt ID"), " or a pasted ", h("span", { className: "intel-req-em" }, "FASTA sequence"), ". Either one is enough — everything else is optional."
+          ),
+          h(
+            "div",
             { className: "entry-card-grid" },
             h(
               FieldGroup,
-              { title: "Start Here", copy: "Add a UniProt ID, FASTA sequence, or both." },
-              renderInput("Experiment title", experiment.title, (value) => updateField("title", value)),
+              { title: "Option A · UniProt ID", copy: "Fastest route — Butterfly pulls identity, structure, and features automatically." },
+              renderInput("UniProt ID", experiment.uniprot_id, (value) => updateField("uniprot_id", value)),
+              renderInput("Experiment title (optional)", experiment.title, (value) => updateField("title", value)),
               renderInput("Target protein (optional)", experiment.protein_name, (value) => updateField("protein_name", value)),
-              renderInput("UniProt ID (optional)", experiment.uniprot_id, (value) => updateField("uniprot_id", value)),
-              renderInput("Organism", experiment.organism_name, (value) => updateField("organism_name", value)),
+              renderInput("Organism (optional)", experiment.organism_name, (value) => updateField("organism_name", value)),
               renderInput("Expression system (optional)", experiment.expression_system, (value) => updateField("expression_system", value))
             ),
             h(
               FieldGroup,
-              { title: "FASTA Sequence", copy: "Paste sequence here if UniProt is unavailable or if you want sequence-led prediction." },
-              renderTextAreaInput("FASTA / protein sequence (optional)", experiment.protein_sequence, (value) => updateField("protein_sequence", value), "Paste amino acid sequence or FASTA if UniProt is unavailable, incomplete, or you want sequence-specific prediction.")
+              { title: "Option B · FASTA sequence", copy: "Use this if you don't have a UniProt ID, or want sequence-led prediction." },
+              renderTextAreaInput("FASTA / protein sequence", experiment.protein_sequence, (value) => updateField("protein_sequence", value), "Paste an amino-acid or FASTA sequence. Enough on its own to generate protein intelligence.")
             )
           ),
-          h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onFetchProteinIntelligence, disabled: proteinIntelLoading || !(experiment.uniprot_id || experiment.protein_name || experiment.protein_sequence) }, proteinIntelLoading ? "Loading protein intelligence..." : "Fetch / predict protein intelligence"))
+          h(
+            "div",
+            { className: "button-row intel-fetch-row" },
+            h("button", { className: "button button-primary", type: "button", onClick: onFetchProteinIntelligence, disabled: proteinIntelLoading || !(experiment.uniprot_id || experiment.protein_name || experiment.protein_sequence) }, proteinIntelLoading ? "Loading protein intelligence..." : "Fetch / predict protein intelligence"),
+            !proteinIntelLoading && !(experiment.uniprot_id || experiment.protein_name || experiment.protein_sequence)
+              ? h("span", { className: "intel-fetch-hint" }, "Enter a UniProt ID or FASTA sequence to continue.")
+              : null
+          )
         ),
         h(
           "div",
@@ -1625,6 +1638,246 @@
     return insights;
   }
 
+  const FEATURE_COLORS = {
+    TRANSMEM: "#0f5a42",
+    INTRAMEM: "#2d8a5f",
+    SIGNAL: "#c79769",
+    TRANSIT: "#c79769",
+    PROPEP: "#b08968",
+    PEPTIDE: "#b9c7bf",
+    CHAIN: "#aebfb4",
+    DOMAIN: "#3f7fbf",
+    REGION: "#8a9aa8",
+    REPEAT: "#7b6cc4",
+    COILED: "#5aa0a0",
+    ZN_FING: "#b5651d",
+    DNA_BIND: "#6b7fd7",
+    TOPO_DOM: "#9bb0a5",
+    MOTIF: "#cc7a8b",
+  };
+
+  function featureLabel(type) {
+    const map = {
+      TRANSMEM: "Transmembrane",
+      INTRAMEM: "Intramembrane",
+      SIGNAL: "Signal peptide",
+      TRANSIT: "Transit peptide",
+      PROPEP: "Propeptide",
+      PEPTIDE: "Peptide",
+      CHAIN: "Mature chain",
+      DOMAIN: "Domain",
+      REGION: "Region",
+      REPEAT: "Repeat",
+      COILED: "Coiled-coil",
+      ZN_FING: "Zinc finger",
+      DNA_BIND: "DNA-binding",
+      TOPO_DOM: "Topological domain",
+      MOTIF: "Motif",
+    };
+    return map[type] || type;
+  }
+
+  function featureColor(type) {
+    return FEATURE_COLORS[type] || "#7f8c99";
+  }
+
+  // Interactive 3D AlphaFold structure. The 3Dmol library is loaded on demand
+  // and every interaction is guarded so a failure can never break the page.
+  function StructureViewer({ alphafold, accession }) {
+    const ref = useRef(null);
+    const [status, setStatus] = useState("loading");
+    const pdbUrl = alphafold && alphafold.pdb_url;
+
+    useEffect(() => {
+      if (!pdbUrl) {
+        setStatus("error");
+        return undefined;
+      }
+      let cancelled = false;
+      setStatus("loading");
+
+      function render3D() {
+        try {
+          if (cancelled) return;
+          if (!window.$3Dmol || !ref.current) {
+            setStatus("error");
+            return;
+          }
+          ref.current.innerHTML = "";
+          const viewer = window.$3Dmol.createViewer(ref.current, { backgroundColor: "white" });
+          fetch(pdbUrl)
+            .then((response) => {
+              if (!response.ok) throw new Error("structure fetch failed");
+              return response.text();
+            })
+            .then((text) => {
+              if (cancelled) return;
+              viewer.addModel(text, "pdb");
+              viewer.setStyle({}, { cartoon: { colorscheme: { prop: "b", gradient: "roygb", min: 50, max: 90 } } });
+              viewer.zoomTo();
+              viewer.render();
+              setStatus("ready");
+            })
+            .catch(() => {
+              if (!cancelled) setStatus("error");
+            });
+        } catch (err) {
+          if (!cancelled) setStatus("error");
+        }
+      }
+
+      if (window.$3Dmol) {
+        render3D();
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      let script = document.getElementById("dmol-lib");
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "dmol-lib";
+        script.src = "https://3Dmol.org/build/3Dmol-min.js";
+        document.head.appendChild(script);
+      }
+      const onLoad = () => render3D();
+      const onError = () => {
+        if (!cancelled) setStatus("error");
+      };
+      script.addEventListener("load", onLoad);
+      script.addEventListener("error", onError);
+      return () => {
+        cancelled = true;
+        script.removeEventListener("load", onLoad);
+        script.removeEventListener("error", onError);
+      };
+    }, [pdbUrl]);
+
+    if (!pdbUrl) {
+      return h(
+        "div",
+        { className: "intel-apple-card struct-card" },
+        h("p", { className: "intel-why-kicker" }, "3D structure"),
+        h("p", { className: "struct-note" }, "No AlphaFold model was resolved for this entry, so a 3D fold isn't available.")
+      );
+    }
+
+    return h(
+      "div",
+      { className: "intel-apple-card struct-card" },
+      h(
+        "div",
+        { className: "struct-head" },
+        h("p", { className: "intel-why-kicker" }, "3D structure · AlphaFold"),
+        alphafold.confidence_label
+          ? h("span", { className: `struct-conf struct-conf-${alphafold.confidence_label}` }, `${alphafold.confidence_label} confidence · pLDDT ${alphafold.mean_plddt}`)
+          : null
+      ),
+      h(
+        "div",
+        { className: "struct-viewer-wrap" },
+        h("div", { className: "struct-viewer", ref }),
+        status !== "ready"
+          ? h(
+              "div",
+              { className: "struct-overlay" },
+              status === "loading"
+                ? "Loading 3D model…"
+                : h(
+                    React.Fragment,
+                    null,
+                    "3D viewer unavailable. ",
+                    accession
+                      ? h("a", { href: `https://alphafold.ebi.ac.uk/entry/${accession}`, target: "_blank", rel: "noreferrer" }, "Open on AlphaFold")
+                      : null
+                  )
+            )
+          : null
+      ),
+      h("p", { className: "struct-legend-note" }, "Drag to rotate · scroll to zoom. Cartoon coloured by model confidence (pLDDT): warmer = lower, cooler = higher.")
+    );
+  }
+
+  // Data-driven 1D domain / topology map built from UniProt/EBI positional
+  // features — N-terminus on the left, C-terminus on the right.
+  function DomainMap({ proteinIntelligence }) {
+    const identity = proteinIntelligence.uniprot || {};
+    const chemistry = proteinIntelligence.chemistry || {};
+    const length = Number(identity.sequence_length || chemistry.sequence_length || 0);
+    const raw = (proteinIntelligence.ebi_features && proteinIntelligence.ebi_features.examples) || [];
+
+    const features = raw
+      .map((f) => ({ type: f.type, begin: Number(f.begin), end: Number(f.end), description: f.description || "" }))
+      .filter((f) => Number.isFinite(f.begin) && Number.isFinite(f.end) && f.begin >= 1 && f.end >= f.begin && (!length || f.end <= length));
+
+    if (!length) return null;
+
+    // One lane per feature type for a clean, non-overlapping track view.
+    const types = [];
+    features.forEach((f) => {
+      if (types.indexOf(f.type) === -1) types.push(f.type);
+    });
+
+    const W = 820;
+    const leftPad = 132;
+    const rightPad = 24;
+    const topPad = 30;
+    const laneH = 22;
+    const laneGap = 10;
+    const innerW = W - leftPad - rightPad;
+    const H = topPad + Math.max(types.length, 1) * (laneH + laneGap) + 14;
+    const xOf = (res) => leftPad + ((res - 1) / Math.max(1, length - 1)) * innerW;
+
+    const ticks = [1, Math.round(length * 0.25), Math.round(length * 0.5), Math.round(length * 0.75), length];
+
+    const svgChildren = [];
+    // Axis ticks
+    ticks.forEach((t, i) => {
+      svgChildren.push(h("line", { key: `tl-${i}`, x1: xOf(t), y1: topPad - 8, x2: xOf(t), y2: topPad - 3, stroke: "rgba(0,0,0,0.25)" }));
+      svgChildren.push(h("text", { key: `tt-${i}`, x: xOf(t), y: topPad - 12, textAnchor: "middle", className: "domain-tick" }, String(t)));
+    });
+    // N / C terminus labels
+    svgChildren.push(h("text", { key: "nterm", x: leftPad, y: topPad + 4, textAnchor: "start", className: "domain-term" }, "N"));
+    svgChildren.push(h("text", { key: "cterm", x: leftPad + innerW, y: topPad + 4, textAnchor: "end", className: "domain-term" }, "C"));
+
+    types.forEach((type, laneIdx) => {
+      const laneY = topPad + 10 + laneIdx * (laneH + laneGap);
+      // lane label
+      svgChildren.push(h("text", { key: `lab-${laneIdx}`, x: leftPad - 10, y: laneY + laneH / 2 + 4, textAnchor: "end", className: "domain-lane-label" }, featureLabel(type)));
+      // baseline
+      svgChildren.push(h("rect", { key: `base-${laneIdx}`, x: leftPad, y: laneY + laneH / 2 - 1, width: innerW, height: 2, fill: "rgba(15,90,66,0.12)" }));
+      features
+        .filter((f) => f.type === type)
+        .forEach((f, i) => {
+          const x1 = xOf(f.begin);
+          const x2 = xOf(f.end);
+          const segW = Math.max(3, x2 - x1);
+          svgChildren.push(
+            h(
+              "g",
+              { key: `seg-${laneIdx}-${i}` },
+              h("title", null, `${featureLabel(f.type)} · ${f.begin}–${f.end}${f.description ? `: ${f.description}` : ""}`),
+              h("rect", { x: x1, y: laneY, width: segW, height: laneH, rx: 4, fill: featureColor(type), opacity: 0.9 })
+            )
+          );
+        });
+    });
+
+    return h(
+      "div",
+      { className: "intel-apple-card domain-card" },
+      h("p", { className: "intel-why-kicker" }, "Sequence & domain map"),
+      h("p", { className: "domain-sub" }, `${length} residues · N-terminus (left) → C-terminus (right)`),
+      features.length
+        ? h(
+            "div",
+            { className: "domain-map-scroll" },
+            h("svg", { viewBox: `0 0 ${W} ${H}`, className: "domain-map-svg", preserveAspectRatio: "xMidYMid meet" }, svgChildren)
+          )
+        : h("p", { className: "domain-empty" }, "No positional domain or topology features were returned for this entry — the chain length is shown above for context.")
+    );
+  }
+
   function ProteinIntelligencePane({ proteinIntelligence }) {
     const identity = proteinIntelligence.uniprot || {};
     const chemistry = proteinIntelligence.chemistry || {};
@@ -1655,10 +1908,20 @@
     ].filter(Boolean);
 
     const insights = proteinBlotInsights(proteinIntelligence);
+    const af = proteinIntelligence.alphafold || {};
+    const seqLength = Number((proteinIntelligence.uniprot || {}).sequence_length || chemistry.sequence_length || 0);
 
     return h(
       "div",
       { className: "intel-results" },
+      af.available || seqLength
+        ? h(
+            "div",
+            { className: "intel-structure-grid" },
+            h(StructureViewer, { alphafold: af, accession: proteinIntelligence.resolved_accession }),
+            h(DomainMap, { proteinIntelligence })
+          )
+        : null,
       h("div", { className: "metric-grid" }, metricBlock("Accession", proteinIntelligence.resolved_accession || "Not resolved"), metricBlock("Predicted pI", chemistry.theoretical_pI ?? "n/a"), metricBlock("MW (kDa)", chemistry.molecular_weight_kda ?? "n/a"), metricBlock("AlphaFold pLDDT", proteinIntelligence.alphafold?.mean_plddt ?? "n/a"), metricBlock("Membrane retention risk", chemistry.membrane_retention_risk ?? "n/a"), metricBlock("Aggregation risk", chemistry.aggregation_risk ?? "n/a")),
       insights.length
         ? h(

@@ -1435,6 +1435,208 @@ textarea:focus {
   color: #44524b;
 }
 
+/* ============================================================
+   Stage 1 — unified Apple card styling
+   ============================================================ */
+.stage-one-layout {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+}
+
+.stage-one-layout .plan-card,
+.stage-one-layout .intel-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 16px 44px rgba(8, 55, 39, 0.08);
+}
+
+.stage-one-layout .field-group,
+.intel-results .evidence-card,
+.intel-results .lookup-card {
+  background: #fbfbfd;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.intel-apple-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 40px rgba(8, 55, 39, 0.08);
+  padding: 1.2rem 1.3rem;
+}
+
+/* Input guidance */
+.intel-required-note {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 14px;
+  background: rgba(15, 90, 66, 0.08);
+  border: 1px solid rgba(15, 90, 66, 0.16);
+  color: #1d1d1f;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.intel-req-em {
+  font-weight: 700;
+  color: #0f5a42;
+}
+
+.intel-fetch-row {
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.intel-fetch-hint {
+  font-size: 0.85rem;
+  color: #6e6e73;
+}
+
+/* Structure + domain map row */
+.intel-structure-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+@media (max-width: 900px) {
+  .intel-structure-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.struct-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.7rem;
+}
+
+.struct-conf {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+}
+
+.struct-conf-high {
+  background: rgba(15, 90, 66, 0.14);
+  color: #0f5a42;
+}
+
+.struct-conf-moderate {
+  background: rgba(199, 151, 105, 0.18);
+  color: #8a5a23;
+}
+
+.struct-conf-cautious {
+  background: rgba(197, 95, 95, 0.16);
+  color: #9a3b3b;
+}
+
+.struct-viewer-wrap {
+  position: relative;
+  width: 100%;
+  height: 340px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+}
+
+.struct-viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.struct-viewer canvas {
+  border-radius: 14px;
+}
+
+.struct-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  color: #6e6e73;
+  font-size: 0.92rem;
+  background: rgba(252, 252, 253, 0.85);
+}
+
+.struct-overlay a {
+  color: #0f5a42;
+  font-weight: 600;
+}
+
+.struct-legend-note,
+.struct-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #6e6e73;
+}
+
+/* Domain / topology map */
+.domain-sub {
+  margin: 0.2rem 0 0.9rem;
+  font-size: 0.9rem;
+  color: #6e6e73;
+}
+
+.domain-map-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.domain-map-svg {
+  width: 100%;
+  min-width: 520px;
+  height: auto;
+  display: block;
+}
+
+.domain-lane-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: #44524b;
+}
+
+.domain-tick {
+  font-size: 10px;
+  fill: #9aa6a0;
+}
+
+.domain-term {
+  font-size: 13px;
+  font-weight: 700;
+  fill: #0f5a42;
+}
+
+.domain-empty {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  color: #6e6e73;
+}
+
+.domain-card .domain-map-svg rect {
+  transition: opacity 0.15s ease;
+}
+
+.domain-card .domain-map-svg g:hover rect {
+  opacity: 1;
+}
+
 .dtree-symptom-blurb {
   font-size: 0.92rem;
   line-height: 1.45;
