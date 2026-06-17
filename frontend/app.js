@@ -1661,8 +1661,8 @@
   }
 
   const FEATURE_COLORS = {
-    TRANSMEM: "#0f5a42",
-    INTRAMEM: "#2d8a5f",
+    TRANSMEM: "#daa900",
+    INTRAMEM: "#e0a82e",
     SIGNAL: "#c79769",
     TRANSIT: "#c79769",
     PROPEP: "#b08968",
@@ -1674,7 +1674,7 @@
     COILED: "#5aa0a0",
     ZN_FING: "#b5651d",
     DNA_BIND: "#6b7fd7",
-    TOPO_DOM: "#9bb0a5",
+    TOPO_DOM: "#cbb88a",
     MOTIF: "#cc7a8b",
   };
 
@@ -1890,7 +1890,7 @@
     types.forEach((type, laneIdx) => {
       const laneY = topPad + 12 + laneIdx * (laneH + laneGap);
       svgChildren.push(h("text", { key: `lab-${laneIdx}`, x: leftPad - 12, y: laneY + laneH / 2 + 4, textAnchor: "end", className: "domain-lane-label" }, featureLabel(type)));
-      svgChildren.push(h("rect", { key: `base-${laneIdx}`, x: leftPad, y: laneY + laneH / 2 - 1, width: innerW, height: 2, fill: "rgba(15,90,66,0.12)" }));
+      svgChildren.push(h("rect", { key: `base-${laneIdx}`, x: leftPad, y: laneY + laneH / 2 - 1, width: innerW, height: 2, fill: "rgba(218,169,0,0.12)" }));
       features
         .filter((f) => f.type === type)
         .forEach((f, i) => {
@@ -1911,7 +1911,7 @@
                 rx: 5,
                 fill: featureColor(type),
                 opacity: selected && !sel ? 0.4 : 0.92,
-                stroke: sel ? "#0f5a42" : "none",
+                stroke: sel ? "#daa900" : "none",
                 strokeWidth: sel ? 2.5 : 0,
               })
             )
@@ -1943,8 +1943,71 @@
     );
   }
 
-  // Combines the interactive domain map (top, full width) with the 3D fold
-  // (beneath). Selecting a feature on the map highlights it on the structure.
+  // "Where will my band run?" — predicted band on a standard MW ladder, with
+  // zones for likely processed (lower) and aggregated/PTM (higher) species.
+  function ExpectedBand({ proteinIntelligence }) {
+    const chem = proteinIntelligence.chemistry || {};
+    const counts = (proteinIntelligence.ebi_features && proteinIntelligence.ebi_features.counts) || {};
+    const mw = Number(chem.molecular_weight_kda || 0);
+    if (!mw) return null;
+
+    const ladder = [250, 150, 100, 75, 50, 37, 25, 20, 15, 10];
+    const topPad = 26;
+    const gelH = 300;
+    const laneX = 116;
+    const laneW = 128;
+    const minLog = Math.log10(10);
+    const maxLog = Math.log10(250);
+    const clamp = (v) => Math.max(10, Math.min(250, v));
+    const yOf = (m) => topPad + (1 - (Math.log10(clamp(m)) - minLog) / (maxLog - minLog)) * gelH;
+    const H = topPad + gelH + 26;
+
+    const processed = Number(chem.cleavage_site_count || 0) > 0 || Number(counts.SIGNAL || 0) > 0 || Number(counts.PROPEP || 0) > 0;
+    const aggregation = chem.aggregation_risk === "moderate" || chem.aggregation_risk === "high";
+    const ty = yOf(mw);
+
+    const children = [];
+    children.push(h("text", { key: "axis", x: laneX - 12, y: topPad - 9, textAnchor: "end", className: "gel-axis" }, "kDa"));
+    children.push(h("rect", { key: "lane", x: laneX, y: topPad, width: laneW, height: gelH, rx: 6, fill: "#f3f0e6", stroke: "rgba(0,0,0,0.08)" }));
+    if (aggregation) {
+      children.push(h("rect", { key: "agg", x: laneX, y: topPad, width: laneW, height: Math.max(0, ty - topPad), fill: "rgba(255,199,44,0.14)" }));
+    }
+    if (processed) {
+      children.push(h("rect", { key: "proc", x: laneX, y: ty, width: laneW, height: Math.max(0, topPad + gelH - ty), fill: "rgba(218,169,0,0.08)" }));
+    }
+    ladder.forEach((m, i) => {
+      const y = yOf(m);
+      children.push(h("line", { key: `lt-${i}`, x1: laneX - 8, y1: y, x2: laneX, y2: y, stroke: "rgba(0,0,0,0.3)" }));
+      children.push(h("text", { key: `ll-${i}`, x: laneX - 12, y: y + 4, textAnchor: "end", className: "gel-tick" }, String(m)));
+      children.push(h("line", { key: `lg-${i}`, x1: laneX, y1: y, x2: laneX + laneW, y2: y, stroke: "rgba(0,0,0,0.06)" }));
+    });
+    children.push(h("rect", { key: "band", x: laneX + 8, y: ty - 5, width: laneW - 16, height: 10, rx: 3, fill: "#daa900" }));
+    children.push(h("line", { key: "blead", x1: laneX + laneW, y1: ty, x2: laneX + laneW + 14, y2: ty, stroke: "#daa900", strokeWidth: 2 }));
+    children.push(h("text", { key: "blabel", x: laneX + laneW + 18, y: ty + 4, textAnchor: "start", className: "gel-band-label" }, `~${Math.round(mw)} kDa · your target`));
+
+    return h(
+      "div",
+      { className: "intel-apple-card gel-card" },
+      h("p", { className: "intel-why-kicker" }, "Where your band should run"),
+      h("p", { className: "domain-sub" }, `Predicted main band ≈ ${Math.round(mw)} kDa against a standard protein ladder.`),
+      h(
+        "div",
+        { className: "gel-scroll" },
+        h("svg", { viewBox: `0 0 360 ${H}`, className: "gel-svg", preserveAspectRatio: "xMidYMid meet" }, children)
+      ),
+      processed || aggregation
+        ? h(
+            "ul",
+            { className: "gel-notes" },
+            processed ? h("li", { key: "p" }, "Faint lower bands are plausible — this protein has signal/cleavage/processing sites (processed or degraded forms).") : null,
+            aggregation ? h("li", { key: "a" }, "Higher-MW bands or smears are plausible — aggregation/PTM risk is elevated; keep samples cold and fully denatured.") : null
+          )
+        : h("p", { className: "gel-notes-clean" }, "No strong processing or aggregation cues — expect a clean single band near the predicted size.")
+    );
+  }
+
+  // Combines the interactive domain map (top, full width), the 3D fold, and the
+  // predicted band. Selecting a feature on the map highlights it on the structure.
   function StructurePanel({ proteinIntelligence }) {
     const [selected, setSelected] = useState(null);
     const af = proteinIntelligence.alphafold || {};
@@ -1952,7 +2015,12 @@
       "div",
       { className: "intel-structure-stack" },
       h(DomainMap, { proteinIntelligence, selected, onSelect: setSelected }),
-      h(StructureViewer, { alphafold: af, accession: proteinIntelligence.resolved_accession, highlight: selected })
+      h(
+        "div",
+        { className: "intel-fold-row" },
+        h(StructureViewer, { alphafold: af, accession: proteinIntelligence.resolved_accession, highlight: selected }),
+        h(ExpectedBand, { proteinIntelligence })
+      )
     );
   }
 

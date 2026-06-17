@@ -1,18 +1,19 @@
 :root {
-  --bg: #0f5a42;
-  --panel: #c8e3d3;
-  --panel-strong: #d9ecdf;
-  --panel-soft: #bfdccd;
-  --stroke: rgba(17, 73, 53, 0.16);
-  --stroke-strong: rgba(17, 73, 53, 0.28);
-  --text: #153126;
-  --muted: #48695a;
-  --accent: #0f5a42;
-  --accent-deep: #0b4834;
+  --bg: #f5f3ea;
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+  --panel-soft: #faf7ec;
+  --stroke: rgba(0, 0, 0, 0.08);
+  --stroke-strong: rgba(0, 0, 0, 0.14);
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --accent: #daa900;
+  --accent-deep: #b98a00;
+  --bright: #ffc72c;
   --warn: #c79769;
   --bad: #c55f5f;
-  --good: #0f5a42;
-  --shadow: 0 24px 60px rgba(8, 55, 39, 0.18);
+  --good: #daa900;
+  --shadow: 0 18px 48px rgba(60, 45, 0, 0.12);
 }
 
 * {
@@ -23,11 +24,11 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(203, 236, 215, 0.14), transparent 32%),
-    radial-gradient(circle at bottom right, rgba(229, 245, 234, 0.15), transparent 30%),
-    linear-gradient(180deg, #136448, #0f5a42 45%, #0a4935);
+    radial-gradient(circle at top left, rgba(255, 199, 44, 0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(218, 169, 0, 0.10), transparent 32%),
+    linear-gradient(180deg, #fbf9f2, #f5f3ea 60%, #f1eddf);
 }
 
 .app-shell {
@@ -120,7 +121,7 @@ h1 {
   justify-content: center;
   padding: 1.1rem;
   border-radius: 24px;
-  background: #d0e4d5;
+  background: #f3f0e6;
 }
 
 .brand-mark {
@@ -139,7 +140,7 @@ h1 {
 .hero-stat {
   border-radius: 18px;
   padding: 1rem;
-  background: #d9ecdf;
+  background: #ffffff;
 }
 
 .hero-stat-value {
@@ -186,7 +187,7 @@ h1 {
 }
 
 .onboarding-fields {
-  background: rgba(244, 251, 246, 0.8);
+  background: rgba(250, 247, 236, 0.8);
 }
 
 .onboarding-checkbox {
@@ -202,8 +203,8 @@ h1 {
 }
 
 .onboarding-tag-active {
-  background: rgba(45, 138, 95, 0.18);
-  border: 1px solid rgba(45, 138, 95, 0.22);
+  background: rgba(218, 169, 0, 0.18);
+  border: 1px solid rgba(218, 169, 0, 0.22);
 }
 
 .auth-error {
@@ -240,12 +241,12 @@ h1 {
 }
 
 .timeline-active {
-  border-color: rgba(126, 231, 214, 0.42);
+  border-color: rgba(255, 199, 44, 0.42);
 }
 
 .timeline-complete {
-  border-color: rgba(45, 138, 95, 0.35);
-  background: rgba(227, 246, 233, 0.95);
+  border-color: rgba(218, 169, 0, 0.35);
+  background: rgba(250, 247, 236, 0.95);
 }
 
 .timeline-locked {
@@ -260,9 +261,9 @@ h1 {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(45, 138, 95, 0.08);
+  background: rgba(218, 169, 0, 0.08);
   color: var(--accent);
-  border: 1px solid rgba(45, 138, 95, 0.22);
+  border: 1px solid rgba(218, 169, 0, 0.22);
 }
 
 .timeline-title {
@@ -287,7 +288,7 @@ h1 {
 }
 
 .panel-complete {
-  border-color: rgba(126, 231, 214, 0.28);
+  border-color: rgba(255, 199, 44, 0.28);
 }
 
 .panel-locked {
@@ -380,7 +381,7 @@ h1 {
   border: 1px solid var(--stroke);
   border-radius: 18px;
   padding: 1rem;
-  background: rgba(244, 251, 246, 0.74);
+  background: rgba(250, 247, 236, 0.74);
 }
 
 .field-group-header {
@@ -416,7 +417,7 @@ h1 {
 }
 
 .stage-done {
-  background: rgba(126, 231, 214, 0.12);
+  background: rgba(255, 199, 44, 0.12);
   color: var(--good);
 }
 
@@ -450,7 +451,7 @@ input[type="file"]::file-selector-button {
   border: 1px solid var(--stroke);
   border-radius: 999px;
   padding: 0.45rem 0.8rem;
-  background: rgba(45, 138, 95, 0.08);
+  background: rgba(218, 169, 0, 0.08);
   color: var(--accent);
   cursor: pointer;
 }
@@ -477,8 +478,8 @@ textarea {
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 1px solid rgba(45, 138, 95, 0.35);
-  border-color: rgba(45, 138, 95, 0.35);
+  outline: 1px solid rgba(218, 169, 0, 0.35);
+  border-color: rgba(218, 169, 0, 0.35);
 }
 
 .button-row {
@@ -523,12 +524,12 @@ textarea:focus {
 }
 
 .button-primary {
-  background: linear-gradient(180deg, rgba(64, 157, 106, 0.92), rgba(34, 110, 68, 0.96));
-  border-color: rgba(45, 138, 95, 0.3);
+  background: linear-gradient(180deg, rgba(218, 169, 0, 0.92), rgba(185, 138, 0, 0.96));
+  border-color: rgba(218, 169, 0, 0.3);
 }
 
 .button-secondary {
-  background: rgba(45, 138, 95, 0.08);
+  background: rgba(218, 169, 0, 0.08);
   color: var(--accent);
 }
 
@@ -546,7 +547,7 @@ textarea:focus {
 }
 
 .upload-card {
-  border: 1px dashed rgba(45, 138, 95, 0.26);
+  border: 1px dashed rgba(218, 169, 0, 0.26);
 }
 
 .preview {
@@ -592,7 +593,7 @@ textarea:focus {
 }
 
 .score-good {
-  background: rgba(45, 138, 95, 0.12);
+  background: rgba(218, 169, 0, 0.12);
   color: var(--good);
 }
 
@@ -627,7 +628,7 @@ textarea:focus {
   padding: 1rem;
   margin-bottom: 0.9rem;
   border: 1px solid var(--stroke);
-  background: rgba(244, 251, 246, 0.95);
+  background: rgba(250, 247, 236, 0.95);
 }
 
 .plan-card {
@@ -763,7 +764,7 @@ textarea:focus {
 }
 
 .chat-assistant {
-  background: rgba(217, 236, 223, 0.98);
+  background: rgba(250, 247, 236, 0.98);
 }
 
 .compact-doc {
@@ -787,7 +788,7 @@ textarea:focus {
 .tag {
   border-radius: 999px;
   padding: 0.25rem 0.55rem;
-  background: rgba(45, 138, 95, 0.1);
+  background: rgba(218, 169, 0, 0.1);
   color: var(--accent);
   font-size: 0.74rem;
 }
@@ -807,7 +808,7 @@ textarea:focus {
   border: 1px solid var(--stroke);
   border-radius: 18px;
   padding: 0.95rem 1rem;
-  background: rgba(244, 251, 246, 0.86);
+  background: rgba(250, 247, 236, 0.86);
 }
 
 .guided-step-card strong {
@@ -862,7 +863,7 @@ textarea:focus {
   padding: 0.62rem 0.78rem;
   border: 1px solid var(--stroke);
   border-radius: 18px;
-  background: rgba(244, 251, 246, 0.88);
+  background: rgba(250, 247, 236, 0.88);
   max-width: 100%;
 }
 
@@ -873,7 +874,7 @@ textarea:focus {
   width: 1.6rem;
   height: 1.6rem;
   border-radius: 999px;
-  background: rgba(45, 138, 95, 0.12);
+  background: rgba(218, 169, 0, 0.12);
   color: var(--accent);
   font-size: 0.72rem;
   font-weight: 600;
@@ -934,7 +935,7 @@ textarea:focus {
    Guided troubleshooting decision tree — Apple-style surface
    ============================================================ */
 .dtree {
-  --dtree-accent: #0f5a42;
+  --dtree-accent: #daa900;
   --dtree-ink: #1d1d1f;
   --dtree-muted: #6e6e73;
   --dtree-line: rgba(0, 0, 0, 0.08);
@@ -943,7 +944,7 @@ textarea:focus {
   border: 1px solid var(--dtree-line);
   border-radius: 22px;
   padding: 2rem 2rem 1.75rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 18px 50px rgba(8, 55, 39, 0.10);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 18px 50px rgba(60, 45, 0, 0.10);
   color: var(--dtree-ink);
   -webkit-font-smoothing: antialiased;
 }
@@ -998,8 +999,8 @@ textarea:focus {
 .dtree-symptom-card:hover {
   transform: translateY(-3px);
   background: #ffffff;
-  border-color: rgba(15, 90, 66, 0.35);
-  box-shadow: 0 12px 30px rgba(8, 55, 39, 0.14);
+  border-color: rgba(218, 169, 0, 0.35);
+  box-shadow: 0 12px 30px rgba(60, 45, 0, 0.14);
 }
 
 .dtree-symptom-icon {
@@ -1043,7 +1044,7 @@ textarea:focus {
   text-align: center;
   min-height: 110px;
   padding: 1.2rem;
-  border: 1.5px dashed rgba(15, 90, 66, 0.4);
+  border: 1.5px dashed rgba(218, 169, 0, 0.4);
   border-radius: 16px;
   background: #fbfbfd;
   cursor: pointer;
@@ -1079,7 +1080,7 @@ textarea:focus {
   margin: 1rem 0 0;
   padding: 0.85rem 1.1rem;
   border-radius: 12px;
-  background: rgba(15, 90, 66, 0.08);
+  background: rgba(218, 169, 0, 0.08);
   color: var(--dtree-ink);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -1090,7 +1091,7 @@ textarea:focus {
   margin-top: 1rem;
   padding: 1.1rem 1.25rem;
   border-radius: 14px;
-  background: rgba(15, 90, 66, 0.08);
+  background: rgba(218, 169, 0, 0.08);
   border: 1px solid var(--dtree-line);
   color: var(--dtree-ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
@@ -1133,7 +1134,7 @@ textarea:focus {
   display: inline-block;
   padding: 0.32rem 0.7rem;
   border-radius: 999px;
-  background: rgba(15, 90, 66, 0.14);
+  background: rgba(218, 169, 0, 0.14);
   color: var(--dtree-accent);
   font-size: 0.82rem;
   font-weight: 600;
@@ -1153,7 +1154,7 @@ textarea:focus {
   display: inline-block;
   padding: 0.3rem 0.7rem;
   border-radius: 999px;
-  background: rgba(15, 90, 66, 0.08);
+  background: rgba(218, 169, 0, 0.08);
   border: 1px solid var(--dtree-line);
   color: var(--dtree-ink);
   font-size: 0.82rem;
@@ -1236,19 +1237,19 @@ textarea:focus {
 }
 
 .flow-step-box:hover {
-  border-color: rgba(15, 90, 66, 0.4);
+  border-color: rgba(218, 169, 0, 0.4);
   background: #ffffff;
 }
 
 .flow-step-current {
   background: #ffffff;
   border-color: var(--dtree-accent);
-  box-shadow: 0 0 0 2px rgba(15, 90, 66, 0.22);
+  box-shadow: 0 0 0 2px rgba(218, 169, 0, 0.22);
   cursor: default;
 }
 
 .flow-step-outcome {
-  background: rgba(15, 90, 66, 0.1);
+  background: rgba(218, 169, 0, 0.1);
 }
 
 .flow-link {
@@ -1335,8 +1336,8 @@ textarea:focus {
 .flow-branch:hover {
   transform: translateY(-2px);
   background: #ffffff;
-  border-color: rgba(15, 90, 66, 0.45);
-  box-shadow: 0 10px 24px rgba(8, 55, 39, 0.12);
+  border-color: rgba(218, 169, 0, 0.45);
+  box-shadow: 0 10px 24px rgba(60, 45, 0, 0.12);
 }
 
 .flow-branch-arrow {
@@ -1380,7 +1381,7 @@ textarea:focus {
   border: 1px solid var(--dtree-line, rgba(0,0,0,0.08));
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 40px rgba(8, 55, 39, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 40px rgba(60, 45, 0, 0.08);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -1390,7 +1391,7 @@ textarea:focus {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #0f5a42;
+  color: #daa900;
 }
 
 .intel-why-grid {
@@ -1402,8 +1403,8 @@ textarea:focus {
 .intel-why-card {
   padding: 0.95rem 1.05rem;
   border-radius: 14px;
-  background: rgba(15, 90, 66, 0.06);
-  border: 1px solid rgba(15, 90, 66, 0.12);
+  background: rgba(218, 169, 0, 0.06);
+  border: 1px solid rgba(218, 169, 0, 0.12);
 }
 
 .intel-why-head {
@@ -1424,7 +1425,7 @@ textarea:focus {
 .intel-why-value {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #0f5a42;
+  color: #daa900;
   white-space: nowrap;
 }
 
@@ -1447,7 +1448,7 @@ textarea:focus {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 22px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 16px 44px rgba(8, 55, 39, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 16px 44px rgba(60, 45, 0, 0.08);
 }
 
 .stage-one-layout .field-group,
@@ -1463,7 +1464,7 @@ textarea:focus {
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 18px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 40px rgba(8, 55, 39, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 40px rgba(60, 45, 0, 0.08);
   padding: 1.2rem 1.3rem;
 }
 
@@ -1472,8 +1473,8 @@ textarea:focus {
   margin-bottom: 1rem;
   padding: 0.9rem 1.1rem;
   border-radius: 14px;
-  background: rgba(15, 90, 66, 0.08);
-  border: 1px solid rgba(15, 90, 66, 0.16);
+  background: rgba(218, 169, 0, 0.08);
+  border: 1px solid rgba(218, 169, 0, 0.16);
   color: #1d1d1f;
   font-size: 0.95rem;
   line-height: 1.5;
@@ -1481,7 +1482,7 @@ textarea:focus {
 
 .intel-req-em {
   font-weight: 700;
-  color: #0f5a42;
+  color: #daa900;
 }
 
 .intel-fetch-row {
@@ -1533,7 +1534,7 @@ textarea:focus {
 
 .tabbtn-on {
   background: #ffffff;
-  color: #0f5a42;
+  color: #daa900;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
@@ -1543,14 +1544,14 @@ textarea:focus {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(15, 90, 66, 0.12);
-  color: #0f5a42;
+  background: rgba(218, 169, 0, 0.12);
+  color: #daa900;
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .tabbtn-on .tabbtn-num {
-  background: #0f5a42;
+  background: #daa900;
   color: #ffffff;
 }
 
@@ -1570,8 +1571,8 @@ textarea:focus {
   margin-top: 0.9rem;
   padding: 0.7rem 1rem;
   border-radius: 12px;
-  background: rgba(15, 90, 66, 0.08);
-  border: 1px solid rgba(15, 90, 66, 0.16);
+  background: rgba(218, 169, 0, 0.08);
+  border: 1px solid rgba(218, 169, 0, 0.16);
   font-size: 0.92rem;
   line-height: 1.45;
   color: #1d1d1f;
@@ -1598,6 +1599,71 @@ textarea:focus {
   opacity: 1;
 }
 
+/* 3D fold + predicted band row */
+.intel-fold-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 860px) {
+  .intel-fold-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gel-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.gel-scroll {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.gel-svg {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  display: block;
+}
+
+.gel-axis {
+  font-size: 11px;
+  font-weight: 700;
+  fill: #6e6e73;
+}
+
+.gel-tick {
+  font-size: 11px;
+  fill: #6e6e73;
+}
+
+.gel-band-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: #1d1d1f;
+}
+
+.gel-notes {
+  margin: 0.8rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #44524b;
+}
+
+.gel-notes-clean {
+  margin: 0.8rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #6e6e73;
+}
+
 .struct-head {
   display: flex;
   align-items: center;
@@ -1616,8 +1682,8 @@ textarea:focus {
 }
 
 .struct-conf-high {
-  background: rgba(15, 90, 66, 0.14);
-  color: #0f5a42;
+  background: rgba(218, 169, 0, 0.14);
+  color: #daa900;
 }
 
 .struct-conf-moderate {
@@ -1698,7 +1764,7 @@ textarea:focus {
 }
 
 .struct-overlay a {
-  color: #0f5a42;
+  color: #daa900;
   font-weight: 600;
 }
 
@@ -1743,7 +1809,7 @@ textarea:focus {
 .domain-term {
   font-size: 13px;
   font-weight: 700;
-  fill: #0f5a42;
+  fill: #daa900;
 }
 
 .domain-empty {
@@ -1856,8 +1922,8 @@ textarea:focus {
 .dtree-option:hover {
   transform: translateY(-2px);
   background: #ffffff;
-  border-color: rgba(15, 90, 66, 0.4);
-  box-shadow: 0 10px 24px rgba(8, 55, 39, 0.12);
+  border-color: rgba(218, 169, 0, 0.4);
+  box-shadow: 0 10px 24px rgba(60, 45, 0, 0.12);
 }
 
 .dtree-option-label {
@@ -1895,9 +1961,9 @@ textarea:focus {
 }
 
 .dtree-result-card:first-child {
-  border-color: rgba(15, 90, 66, 0.32);
+  border-color: rgba(218, 169, 0, 0.32);
   background: #ffffff;
-  box-shadow: 0 10px 28px rgba(8, 55, 39, 0.1);
+  box-shadow: 0 10px 28px rgba(60, 45, 0, 0.1);
 }
 
 .dtree-rank {
@@ -2036,12 +2102,12 @@ textarea:focus {
   border-radius: 999px;
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
-  box-shadow: 0 8px 20px rgba(15, 90, 66, 0.22);
+  box-shadow: 0 8px 20px rgba(218, 169, 0, 0.22);
 }
 
 .dtree-detail-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(15, 90, 66, 0.28);
+  box-shadow: 0 12px 26px rgba(218, 169, 0, 0.28);
 }
 
 .dtree-detail-btn:disabled {
