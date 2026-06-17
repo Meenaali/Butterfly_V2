@@ -1220,7 +1220,7 @@
       { className: "stack" },
       h(
         SectionCard,
-        { number, title: "Experiment History", subtitle: "Saved runs become Butterfly’s internal evidence base." },
+        { number: "07", title: "Experiment History", subtitle: "Saved runs become Butterfly’s internal evidence base." },
         history.length
           ? h("div", { className: "history-stack" }, history.map((item) => h("div", { className: "history-item", key: item.id }, h("h3", null, item.title), h("div", { className: "history-meta mono-copy" }, `Experiment #${item.id} • updated ${formatDate(item.updated_at)}`), h("div", { className: "tag-row" }, buildTags(item.payload).map((itemTag) => h("span", { className: "tag", key: itemTag }, itemTag))), h("div", { className: "button-row" }, h("button", { className: item.id === selectedId ? "button button-secondary" : "button button-ghost", type: "button", onClick: () => onLoad(item) }, item.id === selectedId ? "Loaded" : "Load")))))
           : h("div", { className: "empty-state" }, "No saved experiments yet.")
