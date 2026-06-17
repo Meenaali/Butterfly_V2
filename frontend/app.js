@@ -605,6 +605,7 @@
             docStatus,
             onUploadDocuments: uploadDocuments,
             docUploadLoading,
+            proteinIntelligence,
           })
         ),
         h(SidebarPanel, {
@@ -929,7 +930,7 @@
     );
   }
 
-  function VirtualAssistantSection({ number, experiment, updateField, analyses, comparison, troubleshootingPlan, onGenerate, loading, docStatus, onUploadDocuments, docUploadLoading }) {
+  function VirtualAssistantSection({ number, experiment, updateField, analyses, comparison, troubleshootingPlan, onGenerate, loading, docStatus, onUploadDocuments, docUploadLoading, proteinIntelligence }) {
     const imageEvidence = buildImageEvidenceSummary(analyses);
     return h(
       SectionCard,
@@ -942,6 +943,8 @@
       h(
         "div",
         { className: "virtual-assistant-stack" },
+        h(DecisionTree, { proteinIntelligence }),
+        h("div", { className: "dtree-divider" }, h("span", null, "Or use the detailed assistant")),
         h(
         "div",
         { className: "upload-card assistant-upload-card" },
@@ -990,6 +993,371 @@
           ? h(TroubleshootingResult, { plan: troubleshootingPlan })
           : h("div", { className: "empty-state" }, "Upload optional gel, transfer, or final blot images in the Experiment Log first if you want Butterfly to use image metrics such as background spread, contrast, saturation, asymmetry, and lane variation.")
       )
+    );
+  }
+
+  const SYMPTOM_TREES = {
+    faint: {
+      label: "Faint or no signal",
+      icon: "◐",
+      blurb: "Bands too weak — or nothing at all. We rule out transfer and detection before touching the antibody.",
+      questions: [
+        {
+          id: "transfer",
+          q: "Does a total-protein stain (Ponceau / REVERT) show even transfer?",
+          why: "If protein never reached the membrane, no antibody change can rescue the blot.",
+          options: [
+            { label: "Yes — transfer looks even", tips: [] },
+            { label: "No — weak or patchy", tips: [
+              { title: "Optimise transfer before anything else", why: "Patchy or weak transfer is the direct cause of missing signal — fix this first.", impact: 0.92, effort: "Moderate" },
+            ] },
+            { label: "I haven't checked", tips: [
+              { title: "Run a total-protein stain to confirm transfer", why: "Tells you whether the problem is transfer or detection before you change other variables.", impact: 0.8, effort: "Easy" },
+            ] },
+          ],
+        },
+        {
+          id: "abundance",
+          q: "How abundant is your target in this sample?",
+          why: "Low-abundance targets usually just need more antibody or more sensitive detection.",
+          options: [
+            { label: "Low / rare", tips: [
+              { title: "Increase primary antibody (e.g. 1:2000 → 1:1000)", why: "Low-abundance targets need more antibody to produce detectable signal.", impact: 0.85, effort: "Trivial" },
+              { title: "Switch to a high-sensitivity ECL substrate", why: "Boosts detection for rare targets without overloading the gel.", impact: 0.7, effort: "Easy" },
+            ] },
+            { label: "Moderate / high", tips: [
+              { title: "Increase sample load modestly", why: "When abundance isn't limiting, more target on the gel lifts signal.", impact: 0.5, effort: "Easy" },
+            ] },
+            { label: "Not sure", tips: [
+              { title: "Run a positive-control lysate", why: "Confirms the antibody works and that your sample actually expresses the target.", impact: 0.65, effort: "Moderate" },
+            ] },
+          ],
+        },
+        {
+          id: "washing",
+          q: "Are your washes long or harsh (several 10-min TBST washes)?",
+          why: "Over-washing strips weak signal from lower-affinity antibodies.",
+          options: [
+            { label: "Yes, fairly harsh", tips: [
+              { title: "Shorten and soften washes", why: "Excess washing removes weakly-bound antibody and kills faint signal.", impact: 0.55, effort: "Trivial" },
+            ] },
+            { label: "No, gentle", tips: [] },
+          ],
+        },
+      ],
+    },
+    background: {
+      label: "High background",
+      icon: "▒",
+      blurb: "A hazy or dirty membrane. We separate detection/washing causes from sample-loading causes.",
+      questions: [
+        {
+          id: "spread",
+          q: "Is the haze across the whole membrane, or only in the lanes?",
+          why: "Whole-membrane haze points to blocking/secondary; lane-only points to the sample.",
+          options: [
+            { label: "Whole membrane", tips: [
+              { title: "Dilute the secondary antibody one step further", why: "Excess secondary is the most common cause of uniform background.", impact: 0.82, effort: "Trivial" },
+              { title: "Increase wash volume — 4 × 8–10 min TBST", why: "More thorough washing clears unbound antibody across the whole membrane.", impact: 0.7, effort: "Trivial" },
+            ] },
+            { label: "Mostly in the lanes", tips: [
+              { title: "Lower sample load / add a lighter-load lane", why: "Overloaded lanes look dirty even when antibody conditions are fine.", impact: 0.68, effort: "Easy" },
+            ] },
+            { label: "Speckled / spotty", tips: [
+              { title: "Filter or freshly prepare antibody & blocker; keep membrane wet", why: "Speckling comes from particulates, precipitated antibody, or dry membrane spots.", impact: 0.6, effort: "Easy" },
+            ] },
+          ],
+        },
+        {
+          id: "blocker",
+          q: "Are you using milk as your blocker?",
+          why: "Milk adds phospho-related background with phospho-specific antibodies.",
+          options: [
+            { label: "Yes, milk — phospho antibody", tips: [
+              { title: "Switch from milk to BSA", why: "Milk contains phosphoproteins that raise background for phospho-specific antibodies.", impact: 0.75, effort: "Trivial" },
+            ] },
+            { label: "Yes, milk — total protein", tips: [] },
+            { label: "No, BSA / other", tips: [] },
+          ],
+        },
+        {
+          id: "exposure",
+          q: "Does background appear mainly on long exposures?",
+          why: "Long exposure and high-sensitivity ECL can surface low-level noise.",
+          options: [
+            { label: "Yes, on long exposures", tips: [
+              { title: "Capture short/medium/long exposures and shorten default", why: "Distinguishes real background from imaging saturation and over-exposure.", impact: 0.5, effort: "Trivial" },
+            ] },
+            { label: "No, present even when short", tips: [] },
+          ],
+        },
+      ],
+    },
+    extra: {
+      label: "Extra / ghost bands",
+      icon: "≣",
+      blurb: "Bands you didn't expect. We check whether they're real biology before blaming the antibody.",
+      questions: [
+        {
+          id: "size",
+          q: "Do the extra bands match known isoforms, processed, or degradation sizes?",
+          why: "Extra bands at expected biological sizes may be real, not artefact.",
+          options: [
+            { label: "Yes — they match expected sizes", tips: [
+              { title: "Verify against UniProt / EMBL-EBI feature annotations", why: "Confirms whether extra bands are genuine isoforms/processing before changing the method.", impact: 0.7, effort: "Easy" },
+            ] },
+            { label: "No — they look random", tips: [
+              { title: "Dilute primary one step, keep secondary constant", why: "Over-concentrated primary is a common source of non-specific extra bands.", impact: 0.72, effort: "Trivial" },
+            ] },
+            { label: "Not sure", tips: [
+              { title: "Run a no-primary (secondary-only) control", why: "Tells you instantly whether extra bands come from the primary or the secondary/membrane.", impact: 0.78, effort: "Easy" },
+            ] },
+          ],
+        },
+        {
+          id: "lanes",
+          q: "Do the extra bands appear in every lane, or vary by sample?",
+          why: "All-lane bands point to reagents; sample-varying points to biology.",
+          options: [
+            { label: "Every lane", tips: [
+              { title: "Run no-primary + positive/negative controls", why: "All-lane bands usually come from secondary cross-reactivity or the membrane.", impact: 0.68, effort: "Moderate" },
+            ] },
+            { label: "Varies by sample", tips: [
+              { title: "Compare expression biology, lysis & degradation risk", why: "Sample-dependent bands are often genuine biological variation or degradation.", impact: 0.55, effort: "Moderate" },
+            ] },
+          ],
+        },
+        {
+          id: "validation",
+          q: "Is the antibody clone well-validated for Western blot?",
+          why: "Poorly-validated clones are a frequent root cause of extra bands.",
+          options: [
+            { label: "Yes, strong WB validation", tips: [] },
+            { label: "No / not sure", tips: [
+              { title: "Check clone-level WB evidence (CiteAb / BenchSci)", why: "A weakly-validated clone may be the cause — worth checking before changing the method.", impact: 0.6, effort: "Moderate" },
+            ] },
+          ],
+        },
+      ],
+    },
+    smearing: {
+      label: "Smearing",
+      icon: "░",
+      blurb: "Fuzzy or streaked bands. We find where the smear starts — sample, gel, or transfer.",
+      questions: [
+        {
+          id: "origin",
+          q: "Where does the smear begin?",
+          why: "The origin of the smear points to the stage that needs fixing.",
+          options: [
+            { label: "In the gel", tips: [
+              { title: "Lower sample load & use fresh reducing buffer", why: "Overloading and incomplete denaturation cause smearing that starts in the gel.", impact: 0.78, effort: "Trivial" },
+              { title: "Spin the lysate before loading", why: "Removes debris and aggregates that streak through the lane.", impact: 0.6, effort: "Trivial" },
+            ] },
+            { label: "After transfer", tips: [
+              { title: "Check transfer heat, current & membrane contact", why: "Excess heat or poor contact during transfer smears bands.", impact: 0.7, effort: "Moderate" },
+            ] },
+            { label: "Only the target smears", tips: [
+              { title: "Consider aggregation / PTMs — adjust denaturation", why: "A single smeared target often reflects aggregation or modification, not the whole method.", impact: 0.62, effort: "Moderate" },
+            ] },
+          ],
+        },
+        {
+          id: "salt",
+          q: "Could the sample have high salt or nucleic-acid contamination?",
+          why: "Salt and DNA/RNA distort migration and cause smearing.",
+          options: [
+            { label: "Possibly", tips: [
+              { title: "Clean up sample (desalt / nuclease) before re-running", why: "High salt or nucleic acid contamination distorts migration and smears lanes.", impact: 0.55, effort: "Moderate" },
+            ] },
+            { label: "Unlikely", tips: [] },
+          ],
+        },
+        {
+          id: "gelpct",
+          q: "Is your gel percentage matched to the target size?",
+          why: "A mismatched gel % resolves poorly and can look like smearing.",
+          options: [
+            { label: "Yes, matched", tips: [] },
+            { label: "No / not sure", tips: [
+              { title: "Match gel % to target molecular weight", why: "The right gel % sharpens resolution in your target's size range.", impact: 0.5, effort: "Easy" },
+            ] },
+          ],
+        },
+      ],
+    },
+  };
+
+  function rankSuggestions(tree, answers, proteinIntelligence) {
+    const collected = [];
+    tree.questions.forEach((question) => {
+      const chosen = answers[question.id];
+      if (chosen === undefined || chosen === null) return;
+      const option = question.options[chosen];
+      if (option && option.tips) collected.push(...option.tips);
+    });
+
+    // Protein-aware additions (guarded so missing data never throws)
+    const chemistry = (proteinIntelligence && proteinIntelligence.chemistry) || {};
+    const membraneRisk = chemistry.membrane_retention_risk;
+    const hydrophobicDomains = Number(chemistry.hydrophobic_domain_count || 0);
+    if ((membraneRisk === "high" || hydrophobicDomains > 0) && (tree.label.indexOf("Faint") === 0 || tree.label.indexOf("Smear") === 0)) {
+      collected.push({
+        title: "Prefer PVDF + gentle wet transfer",
+        why: "Your protein looks hydrophobic / membrane-associated, so transfer conditions matter more than antibody.",
+        impact: 0.66,
+        effort: "Moderate",
+      });
+    }
+
+    const byTitle = {};
+    collected.forEach((tip) => {
+      if (!byTitle[tip.title] || byTitle[tip.title].impact < tip.impact) byTitle[tip.title] = tip;
+    });
+    return Object.values(byTitle).sort((a, b) => b.impact - a.impact).slice(0, 5);
+  }
+
+  function impactLabel(impact) {
+    if (impact >= 0.75) return "High impact";
+    if (impact >= 0.55) return "Medium impact";
+    return "Worth trying";
+  }
+
+  function DecisionTree({ proteinIntelligence }) {
+    const [symptomKey, setSymptomKey] = useState(null);
+    const [answers, setAnswers] = useState({});
+    const [stepIndex, setStepIndex] = useState(0);
+
+    function pickSymptom(key) {
+      setSymptomKey(key);
+      setAnswers({});
+      setStepIndex(0);
+    }
+
+    function chooseOption(questionId, optionIndex) {
+      setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
+      setStepIndex((current) => current + 1);
+    }
+
+    function goBack() {
+      setStepIndex((current) => Math.max(0, current - 1));
+    }
+
+    function restart() {
+      setSymptomKey(null);
+      setAnswers({});
+      setStepIndex(0);
+    }
+
+    // Step 1: choose a symptom
+    if (!symptomKey) {
+      return h(
+        "div",
+        { className: "dtree" },
+        h("p", { className: "dtree-kicker" }, "Guided troubleshooting"),
+        h("h3", { className: "dtree-title" }, "What does your blot look like?"),
+        h("p", { className: "dtree-sub" }, "Pick the closest symptom. Butterfly will ask a few quick questions and rank the fixes most likely to help — so you can decide confidently on your own."),
+        h(
+          "div",
+          { className: "dtree-symptom-grid" },
+          Object.keys(SYMPTOM_TREES).map((key) => {
+            const tree = SYMPTOM_TREES[key];
+            return h(
+              "button",
+              { key, type: "button", className: "dtree-symptom-card", onClick: () => pickSymptom(key) },
+              h("span", { className: "dtree-symptom-icon", "aria-hidden": "true" }, tree.icon),
+              h("span", { className: "dtree-symptom-label" }, tree.label),
+              h("span", { className: "dtree-symptom-blurb" }, tree.blurb)
+            );
+          })
+        )
+      );
+    }
+
+    const tree = SYMPTOM_TREES[symptomKey];
+    const questions = tree.questions;
+    const finished = stepIndex >= questions.length;
+
+    // Step 2: ask questions
+    if (!finished) {
+      const question = questions[stepIndex];
+      return h(
+        "div",
+        { className: "dtree" },
+        h(
+          "div",
+          { className: "dtree-head" },
+          h("button", { type: "button", className: "dtree-back", onClick: stepIndex === 0 ? restart : goBack }, "‹ Back"),
+          h("span", { className: "dtree-step-label" }, `${tree.label} · Question ${stepIndex + 1} of ${questions.length}`)
+        ),
+        h(
+          "div",
+          { className: "dtree-progress" },
+          questions.map((_, idx) =>
+            h("span", { key: idx, className: idx <= stepIndex ? "dtree-dot dtree-dot-on" : "dtree-dot" })
+          )
+        ),
+        h("h3", { className: "dtree-question" }, question.q),
+        h("p", { className: "dtree-why" }, question.why),
+        h(
+          "div",
+          { className: "dtree-options" },
+          question.options.map((option, idx) =>
+            h(
+              "button",
+              { key: idx, type: "button", className: "dtree-option", onClick: () => chooseOption(question.id, idx) },
+              h("span", { className: "dtree-option-label" }, option.label),
+              h("span", { className: "dtree-option-arrow", "aria-hidden": "true" }, "›")
+            )
+          )
+        )
+      );
+    }
+
+    // Step 3: ranked suggestions
+    const suggestions = rankSuggestions(tree, answers, proteinIntelligence);
+    return h(
+      "div",
+      { className: "dtree" },
+      h(
+        "div",
+        { className: "dtree-head" },
+        h("button", { type: "button", className: "dtree-back", onClick: goBack }, "‹ Back"),
+        h("span", { className: "dtree-step-label" }, `${tree.label} · Recommended fixes`)
+      ),
+      h("h3", { className: "dtree-title" }, "Try these, in order"),
+      h("p", { className: "dtree-sub" }, "Ranked by how likely each is to fix your blot, based on your answers. Start at the top and change one thing at a time."),
+      h(
+        "div",
+        { className: "dtree-results" },
+        suggestions.length
+          ? suggestions.map((tip, idx) =>
+              h(
+                "div",
+                { className: "dtree-result-card", key: tip.title },
+                h("span", { className: "dtree-rank" }, String(idx + 1)),
+                h(
+                  "div",
+                  { className: "dtree-result-body" },
+                  h("strong", { className: "dtree-result-title" }, tip.title),
+                  h("p", { className: "dtree-result-why" }, tip.why),
+                  h(
+                    "div",
+                    { className: "dtree-meta" },
+                    h(
+                      "span",
+                      { className: "dtree-impact" },
+                      h("span", { className: "dtree-impact-track" }, h("span", { className: "dtree-impact-fill", style: { width: `${Math.round(tip.impact * 100)}%` } })),
+                      h("span", { className: "dtree-impact-text" }, impactLabel(tip.impact))
+                    ),
+                    h("span", { className: "dtree-effort" }, `Effort: ${tip.effort}`)
+                  )
+                )
+              )
+            )
+          : h("div", { className: "empty-state" }, "No specific fixes matched — try the detailed assistant below.")
+      ),
+      h("div", { className: "dtree-restart-row" }, h("button", { type: "button", className: "dtree-restart", onClick: restart }, "Start over"))
     );
   }
 

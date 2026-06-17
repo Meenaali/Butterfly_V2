@@ -929,3 +929,354 @@ textarea:focus {
     display: none;
   }
 }
+
+/* ============================================================
+   Guided troubleshooting decision tree — Apple-style surface
+   ============================================================ */
+.dtree {
+  --dtree-accent: #0f5a42;
+  --dtree-ink: #1d1d1f;
+  --dtree-muted: #6e6e73;
+  --dtree-line: rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  background: #ffffff;
+  border: 1px solid var(--dtree-line);
+  border-radius: 22px;
+  padding: 2rem 2rem 1.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 18px 50px rgba(8, 55, 39, 0.10);
+  color: var(--dtree-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.dtree-kicker {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dtree-accent);
+}
+
+.dtree-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.7rem;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.021em;
+  color: var(--dtree-ink);
+}
+
+.dtree-sub {
+  margin: 0 0 1.5rem;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--dtree-muted);
+  max-width: 60ch;
+}
+
+/* Symptom picker */
+.dtree-symptom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.dtree-symptom-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  text-align: left;
+  padding: 1.35rem 1.3rem;
+  border: 1px solid var(--dtree-line);
+  border-radius: 18px;
+  background: #fbfbfd;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.dtree-symptom-card:hover {
+  transform: translateY(-3px);
+  background: #ffffff;
+  border-color: rgba(15, 90, 66, 0.35);
+  box-shadow: 0 12px 30px rgba(8, 55, 39, 0.14);
+}
+
+.dtree-symptom-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--dtree-accent);
+}
+
+.dtree-symptom-label {
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.dtree-symptom-blurb {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--dtree-muted);
+}
+
+/* Question flow */
+.dtree-head {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 1.1rem;
+}
+
+.dtree-back {
+  border: none;
+  background: transparent;
+  color: var(--dtree-accent);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.2rem 0.1rem;
+  border-radius: 8px;
+  transition: opacity 0.15s ease;
+}
+
+.dtree-back:hover {
+  opacity: 0.6;
+}
+
+.dtree-step-label {
+  font-size: 0.85rem;
+  color: var(--dtree-muted);
+  letter-spacing: -0.01em;
+}
+
+.dtree-progress {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.4rem;
+}
+
+.dtree-dot {
+  width: 28px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.1);
+  transition: background 0.2s ease;
+}
+
+.dtree-dot-on {
+  background: var(--dtree-accent);
+}
+
+.dtree-question {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.dtree-why {
+  margin: 0 0 1.4rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--dtree-muted);
+  max-width: 62ch;
+}
+
+.dtree-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.dtree-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  text-align: left;
+  padding: 1.05rem 1.25rem;
+  border: 1px solid var(--dtree-line);
+  border-radius: 14px;
+  background: #fbfbfd;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.dtree-option:hover {
+  transform: translateY(-2px);
+  background: #ffffff;
+  border-color: rgba(15, 90, 66, 0.4);
+  box-shadow: 0 10px 24px rgba(8, 55, 39, 0.12);
+}
+
+.dtree-option-label {
+  font-size: 1.02rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.dtree-option-arrow {
+  font-size: 1.3rem;
+  color: var(--dtree-muted);
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+
+.dtree-option:hover .dtree-option-arrow {
+  color: var(--dtree-accent);
+  transform: translateX(3px);
+}
+
+/* Ranked results */
+.dtree-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.2rem;
+}
+
+.dtree-result-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.2rem 1.3rem;
+  border: 1px solid var(--dtree-line);
+  border-radius: 16px;
+  background: #fbfbfd;
+}
+
+.dtree-result-card:first-child {
+  border-color: rgba(15, 90, 66, 0.32);
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(8, 55, 39, 0.1);
+}
+
+.dtree-rank {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--dtree-accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dtree-result-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dtree-result-title {
+  display: block;
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.3rem;
+}
+
+.dtree-result-why {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--dtree-muted);
+}
+
+.dtree-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.dtree-impact {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dtree-impact-track {
+  width: 88px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.dtree-impact-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--dtree-accent);
+}
+
+.dtree-impact-text {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--dtree-accent);
+}
+
+.dtree-effort {
+  font-size: 0.82rem;
+  color: var(--dtree-muted);
+}
+
+.dtree-restart-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dtree-restart {
+  border: 1px solid var(--dtree-line);
+  background: #fff;
+  color: var(--dtree-ink);
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.92rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.dtree-restart:hover {
+  background: #f5f5f7;
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.dtree-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  gap: 0.9rem;
+  margin: 1.6rem 0 0.4rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.dtree-divider::before,
+.dtree-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--stroke);
+}
+
+@media (max-width: 720px) {
+  .dtree {
+    padding: 1.5rem 1.25rem;
+  }
+  .dtree-title {
+    font-size: 1.45rem;
+  }
+  .dtree-question {
+    font-size: 1.25rem;
+  }
+}
