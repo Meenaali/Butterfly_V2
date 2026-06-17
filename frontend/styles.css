@@ -1166,6 +1166,112 @@ textarea:focus {
   font-size: 0.9rem;
 }
 
+/* Step-by-step / Flowchart view toggle */
+.dtree-viewtoggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1.2rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 999px;
+}
+
+.dtree-vt {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: -0.01em;
+  color: var(--dtree-muted);
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.dtree-vt-on {
+  background: #ffffff;
+  color: var(--dtree-accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* Flowchart map — indented boxes with elbow connectors */
+.flow-map {
+  margin-top: 0.4rem;
+  overflow-x: auto;
+}
+
+.flow-node-wrap {
+  position: relative;
+}
+
+.flow-conn {
+  display: inline-block;
+  margin: 0.5rem 0 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(15, 90, 66, 0.08);
+  color: var(--dtree-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.flow-node-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--dtree-line);
+  background: #fbfbfd;
+  color: var(--dtree-ink);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  padding: 0.7rem 0.95rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.flow-node-btn:hover {
+  border-color: rgba(15, 90, 66, 0.4);
+  background: #ffffff;
+  box-shadow: 0 6px 16px rgba(8, 55, 39, 0.1);
+}
+
+.flow-node-outcome {
+  background: rgba(15, 90, 66, 0.08);
+  font-weight: 600;
+}
+
+.flow-node-onpath {
+  border-color: rgba(15, 90, 66, 0.5);
+}
+
+.flow-node-current {
+  border-color: var(--dtree-accent);
+  box-shadow: 0 0 0 2px rgba(15, 90, 66, 0.25);
+}
+
+.flow-children {
+  margin: 0.2rem 0 0.2rem 1.1rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--dtree-line);
+}
+
+@media (max-width: 720px) {
+  .flow-node-btn {
+    font-size: 0.9rem;
+  }
+  .flow-children {
+    margin-left: 0.6rem;
+    padding-left: 0.7rem;
+  }
+}
+
 .dtree-symptom-blurb {
   font-size: 0.92rem;
   line-height: 1.45;

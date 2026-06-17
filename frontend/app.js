@@ -1264,6 +1264,7 @@
 
   function BranchTree({ proteinIntelligence, onRequestDetailed, detailedPlan, detailedLoading, comparison }) {
     const [path, setPath] = useState(["root"]);
+    const [view, setView] = useState("steps");
     const currentKey = path[path.length - 1];
     const node = DTREE[currentKey] || DTREE.root;
 
@@ -1300,11 +1301,74 @@
         )
       : null;
 
+    // Find the path from root to any node (the tree has unique routes).
+    function findPath(target) {
+      const queue = [["root"]];
+      while (queue.length) {
+        const trail = queue.shift();
+        const key = trail[trail.length - 1];
+        if (key === target) return trail;
+        const candidate = DTREE[key];
+        if (candidate && candidate.options) {
+          candidate.options.forEach((option) => queue.push(trail.concat([option.next])));
+        }
+      }
+      return ["root"];
+    }
+
+    function pickNode(key) {
+      setPath(findPath(key));
+      setView("steps");
+    }
+
+    function renderFlowNode(key, connectorLabel) {
+      const flowNode = DTREE[key];
+      if (!flowNode) return null;
+      const isOutcome = flowNode.type === "outcome";
+      const classes = ["flow-node-btn"];
+      if (isOutcome) classes.push("flow-node-outcome");
+      if (path.indexOf(key) !== -1) classes.push("flow-node-onpath");
+      if (key === currentKey) classes.push("flow-node-current");
+      return h(
+        "div",
+        { className: "flow-node-wrap", key },
+        connectorLabel ? h("span", { className: "flow-conn" }, connectorLabel) : null,
+        h(
+          "button",
+          { type: "button", className: classes.join(" "), onClick: () => pickNode(key) },
+          isOutcome ? flowNode.title : flowNode.q
+        ),
+        flowNode.options
+          ? h("div", { className: "flow-children" }, flowNode.options.map((option) => renderFlowNode(option.next, option.label)))
+          : null
+      );
+    }
+
+    const viewToggle = h(
+      "div",
+      { className: "dtree-viewtoggle" },
+      h("button", { type: "button", className: view === "steps" ? "dtree-vt dtree-vt-on" : "dtree-vt", onClick: () => setView("steps") }, "Step-by-step"),
+      h("button", { type: "button", className: view === "map" ? "dtree-vt dtree-vt-on" : "dtree-vt", onClick: () => setView("map") }, "Flowchart")
+    );
+
+    if (view === "map") {
+      return h(
+        "div",
+        { className: "dtree" },
+        viewToggle,
+        h("p", { className: "dtree-kicker" }, "Flowchart"),
+        h("h3", { className: "dtree-title" }, "The full diagnostic map"),
+        h("p", { className: "dtree-sub" }, "Every path Butterfly can take. Click any step to jump straight to it — your current position is highlighted."),
+        h("div", { className: "flow-map" }, renderFlowNode("root", null))
+      );
+    }
+
     if (node.type === "question") {
       const isRoot = currentKey === "root";
       return h(
         "div",
         { className: "dtree" },
+        viewToggle,
         isRoot
           ? h("p", { className: "dtree-kicker" }, "Guided troubleshooting")
           : h(
@@ -1349,6 +1413,7 @@
     return h(
       "div",
       { className: "dtree" },
+      viewToggle,
       h(
         "div",
         { className: "dtree-head" },
