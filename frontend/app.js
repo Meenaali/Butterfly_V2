@@ -1661,7 +1661,7 @@
   }
 
   const FEATURE_COLORS = {
-    TRANSMEM: "#daa900",
+    TRANSMEM: "#d98b19",
     INTRAMEM: "#e0a82e",
     SIGNAL: "#c79769",
     TRANSIT: "#c79769",
@@ -1890,7 +1890,7 @@
     types.forEach((type, laneIdx) => {
       const laneY = topPad + 12 + laneIdx * (laneH + laneGap);
       svgChildren.push(h("text", { key: `lab-${laneIdx}`, x: leftPad - 12, y: laneY + laneH / 2 + 4, textAnchor: "end", className: "domain-lane-label" }, featureLabel(type)));
-      svgChildren.push(h("rect", { key: `base-${laneIdx}`, x: leftPad, y: laneY + laneH / 2 - 1, width: innerW, height: 2, fill: "rgba(218,169,0,0.12)" }));
+      svgChildren.push(h("rect", { key: `base-${laneIdx}`, x: leftPad, y: laneY + laneH / 2 - 1, width: innerW, height: 2, fill: "rgba(217,139,25,0.12)" }));
       features
         .filter((f) => f.type === type)
         .forEach((f, i) => {
@@ -1911,7 +1911,7 @@
                 rx: 5,
                 fill: featureColor(type),
                 opacity: selected && !sel ? 0.4 : 0.92,
-                stroke: sel ? "#daa900" : "none",
+                stroke: sel ? "#d98b19" : "none",
                 strokeWidth: sel ? 2.5 : 0,
               })
             )
@@ -1964,7 +1964,9 @@
 
     const processed = Number(chem.cleavage_site_count || 0) > 0 || Number(counts.SIGNAL || 0) > 0 || Number(counts.PROPEP || 0) > 0;
     const aggregation = chem.aggregation_risk === "moderate" || chem.aggregation_risk === "high";
+    const glyco = Number(chem.glycosylation_sites || counts.CARBOHYD || 0);
     const ty = yOf(mw);
+    const apparentY = yOf(mw * 1.4); // glycosylated forms commonly run higher
 
     const children = [];
     children.push(h("text", { key: "axis", x: laneX - 12, y: topPad - 9, textAnchor: "end", className: "gel-axis" }, "kDa"));
@@ -1973,7 +1975,7 @@
       children.push(h("rect", { key: "agg", x: laneX, y: topPad, width: laneW, height: Math.max(0, ty - topPad), fill: "rgba(255,199,44,0.14)" }));
     }
     if (processed) {
-      children.push(h("rect", { key: "proc", x: laneX, y: ty, width: laneW, height: Math.max(0, topPad + gelH - ty), fill: "rgba(218,169,0,0.08)" }));
+      children.push(h("rect", { key: "proc", x: laneX, y: ty, width: laneW, height: Math.max(0, topPad + gelH - ty), fill: "rgba(217,139,25,0.08)" }));
     }
     ladder.forEach((m, i) => {
       const y = yOf(m);
@@ -1981,8 +1983,12 @@
       children.push(h("text", { key: `ll-${i}`, x: laneX - 12, y: y + 4, textAnchor: "end", className: "gel-tick" }, String(m)));
       children.push(h("line", { key: `lg-${i}`, x1: laneX, y1: y, x2: laneX + laneW, y2: y, stroke: "rgba(0,0,0,0.06)" }));
     });
-    children.push(h("rect", { key: "band", x: laneX + 8, y: ty - 5, width: laneW - 16, height: 10, rx: 3, fill: "#daa900" }));
-    children.push(h("line", { key: "blead", x1: laneX + laneW, y1: ty, x2: laneX + laneW + 14, y2: ty, stroke: "#daa900", strokeWidth: 2 }));
+    if (glyco > 0 && apparentY < ty - 6) {
+      children.push(h("rect", { key: "appband", x: laneX + 8, y: apparentY - 4, width: laneW - 16, height: 8, rx: 3, fill: "none", stroke: "#d98b19", strokeWidth: 2, strokeDasharray: "5 4" }));
+      children.push(h("text", { key: "applabel", x: laneX + laneW + 18, y: apparentY + 4, textAnchor: "start", className: "gel-app-label" }, "apparent (glycosylated)"));
+    }
+    children.push(h("rect", { key: "band", x: laneX + 8, y: ty - 5, width: laneW - 16, height: 10, rx: 3, fill: "#d98b19" }));
+    children.push(h("line", { key: "blead", x1: laneX + laneW, y1: ty, x2: laneX + laneW + 14, y2: ty, stroke: "#d98b19", strokeWidth: 2 }));
     children.push(h("text", { key: "blabel", x: laneX + laneW + 18, y: ty + 4, textAnchor: "start", className: "gel-band-label" }, `~${Math.round(mw)} kDa · your target`));
 
     return h(
@@ -1995,14 +2001,127 @@
         { className: "gel-scroll" },
         h("svg", { viewBox: `0 0 360 ${H}`, className: "gel-svg", preserveAspectRatio: "xMidYMid meet" }, children)
       ),
-      processed || aggregation
+      processed || aggregation || glyco > 0
         ? h(
             "ul",
             { className: "gel-notes" },
+            glyco > 0 ? h("li", { key: "g" }, `${glyco} N-glycosylation site(s) — the protein often runs HIGHER than the predicted ${Math.round(mw)} kDa (a fuzzier, shifted band).`) : null,
             processed ? h("li", { key: "p" }, "Faint lower bands are plausible — this protein has signal/cleavage/processing sites (processed or degraded forms).") : null,
             aggregation ? h("li", { key: "a" }, "Higher-MW bands or smears are plausible — aggregation/PTM risk is elevated; keep samples cold and fully denatured.") : null
           )
         : h("p", { className: "gel-notes-clean" }, "No strong processing or aggregation cues — expect a clean single band near the predicted size.")
+    );
+  }
+
+  // Antibody epitope guidance — accessible (non-buried, non-cleaved) regions
+  // from real topology features, so users avoid raising antibodies to TM or
+  // signal/propeptide stretches.
+  function EpitopeGuidance({ proteinIntelligence }) {
+    const identity = proteinIntelligence.uniprot || {};
+    const chem = proteinIntelligence.chemistry || {};
+    const length = Number(identity.sequence_length || chem.sequence_length || 0);
+    const raw = (proteinIntelligence.ebi_features && proteinIntelligence.ebi_features.examples) || [];
+    if (!length) return null;
+
+    const avoidTypes = { TRANSMEM: 1, INTRAMEM: 1, SIGNAL: 1, PROPEP: 1, TRANSIT: 1 };
+    const avoid = raw
+      .map((f) => ({ type: f.type, begin: Number(f.begin), end: Number(f.end) }))
+      .filter((f) => avoidTypes[f.type] && Number.isFinite(f.begin) && Number.isFinite(f.end) && f.end >= f.begin)
+      .sort((a, b) => a.begin - b.begin);
+
+    const accessible = [];
+    let cursor = 1;
+    avoid.forEach((f) => {
+      if (f.begin > cursor) accessible.push({ begin: cursor, end: f.begin - 1 });
+      cursor = Math.max(cursor, f.end + 1);
+    });
+    if (cursor <= length) accessible.push({ begin: cursor, end: length });
+    const sized = accessible.map((s) => ({ begin: s.begin, end: s.end, len: s.end - s.begin + 1 })).sort((a, b) => b.len - a.len);
+
+    const af = proteinIntelligence.alphafold || {};
+
+    return h(
+      "div",
+      { className: "intel-apple-card" },
+      h("p", { className: "intel-why-kicker" }, "Antibody epitope guidance"),
+      avoid.length
+        ? h("p", { className: "domain-sub" }, "Raise or choose antibodies against accessible regions; avoid buried (transmembrane) or cleaved (signal/propeptide) stretches.")
+        : h("p", { className: "domain-sub" }, "No transmembrane or cleaved regions detected — most of the chain is accessible for antibody binding."),
+      sized.length
+        ? h(
+            "div",
+            { className: "epi-list" },
+            sized.slice(0, 4).map((s, i) =>
+              h(
+                "div",
+                { className: i === 0 ? "epi-item epi-item-top" : "epi-item", key: i },
+                h("span", { className: "epi-range" }, `Residues ${s.begin}–${s.end}`),
+                h("span", { className: "epi-len" }, `${s.len} aa`),
+                i === 0 ? h("span", { className: "epi-tag" }, "Best candidate") : null
+              )
+            )
+          )
+        : null,
+      avoid.length
+        ? h("p", { className: "epi-avoid" }, `Avoid: ${avoid.map((f) => `${featureLabel(f.type)} ${f.begin}–${f.end}`).join(" · ")}`)
+        : null,
+      af.confidence_label === "cautious"
+        ? h("p", { className: "epi-note" }, "Structure confidence is low, so treat these boundaries as approximate.")
+        : null
+    );
+  }
+
+  // Copy / export helpers for the lab notebook.
+  function CopyTools({ proteinIntelligence }) {
+    const [copied, setCopied] = useState("");
+    const chem = proteinIntelligence.chemistry || {};
+    const identity = proteinIntelligence.uniprot || {};
+    const seq = chem.sequence || "";
+    const accession = proteinIntelligence.resolved_accession || identity.accession || "protein";
+    const name = identity.protein_name || "protein";
+
+    function copyText(text, tag) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(
+            () => {
+              setCopied(tag);
+              setTimeout(() => setCopied(""), 1500);
+            },
+            () => {}
+          );
+        }
+      } catch (err) {
+        /* clipboard unavailable — ignore */
+      }
+    }
+
+    function copyFasta() {
+      if (!seq) return;
+      const header = `>${accession} ${name}`.trim();
+      const wrapped = seq.replace(/(.{60})/g, "$1\n");
+      copyText(`${header}\n${wrapped}\n`, "fasta");
+    }
+
+    function copySummary() {
+      const lines = [
+        `Protein: ${name}`,
+        `Accession: ${accession}`,
+        `Length: ${chem.sequence_length || "?"} aa`,
+        `Predicted MW: ${chem.molecular_weight_kda || "?"} kDa`,
+        `Predicted pI: ${chem.theoretical_pI || "?"}`,
+        `Aggregation risk: ${chem.aggregation_risk || "n/a"}`,
+        `Membrane retention: ${chem.membrane_retention_risk || "n/a"}`,
+        `Glycosylation sites: ${chem.glycosylation_sites || 0}`,
+      ];
+      copyText(lines.join("\n"), "summary");
+    }
+
+    return h(
+      "div",
+      { className: "intel-tools" },
+      seq ? h("button", { type: "button", className: "intel-tool-btn", onClick: copyFasta }, copied === "fasta" ? "FASTA copied ✓" : "Copy FASTA") : null,
+      h("button", { type: "button", className: "intel-tool-btn", onClick: copySummary }, copied === "summary" ? "Summary copied ✓" : "Copy summary")
     );
   }
 
@@ -2020,7 +2139,8 @@
         { className: "intel-fold-row" },
         h(StructureViewer, { alphafold: af, accession: proteinIntelligence.resolved_accession, highlight: selected }),
         h(ExpectedBand, { proteinIntelligence })
-      )
+      ),
+      h(EpitopeGuidance, { proteinIntelligence })
     );
   }
 
@@ -2060,6 +2180,7 @@
     return h(
       "div",
       { className: "intel-results" },
+      h(CopyTools, { proteinIntelligence }),
       af.available || seqLength
         ? h(StructurePanel, { proteinIntelligence })
         : null,

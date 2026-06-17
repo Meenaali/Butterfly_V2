@@ -356,6 +356,8 @@ def _chemistry_summary(sequence: str, feature_summary: dict[str, Any]) -> dict[s
     aggregation_score += 0.15 if len(sequence) >= 900 else 0.0
 
     return {
+        "sequence": sequence,
+        "glycosylation_sites": int(counts.get("CARBOHYD", 0)),
         "sequence_length": len(sequence),
         "molecular_weight_kda": round(molecular_weight_kda(sequence), 2),
         "theoretical_pI": round(p_i, 2),
