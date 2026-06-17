@@ -1014,6 +1014,77 @@ textarea:focus {
   letter-spacing: -0.01em;
 }
 
+.dtree-symptom-card {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dtree-symptom-arrow {
+  font-size: 1.4rem;
+  color: var(--dtree-muted);
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+
+.dtree-symptom-card:hover .dtree-symptom-arrow {
+  color: var(--dtree-accent);
+  transform: translateX(3px);
+}
+
+/* Blot scanner */
+.blot-scanner {
+  margin-bottom: 1.2rem;
+}
+
+.blot-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 110px;
+  padding: 1.2rem;
+  border: 1.5px dashed rgba(15, 90, 66, 0.4);
+  border-radius: 16px;
+  background: #fbfbfd;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.blot-drop:hover {
+  background: #ffffff;
+  border-color: var(--dtree-accent);
+}
+
+.blot-drop input[type="file"] {
+  display: none;
+}
+
+.blot-drop-text {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--dtree-accent);
+}
+
+.blot-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  margin: 1rem auto 0;
+  border-radius: 12px;
+  border: 1px solid var(--dtree-line);
+}
+
+.blot-suggestion {
+  margin: 1rem 0 0;
+  padding: 0.85rem 1.1rem;
+  border-radius: 12px;
+  background: rgba(15, 90, 66, 0.08);
+  color: var(--dtree-ink);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .dtree-symptom-blurb {
   font-size: 0.92rem;
   line-height: 1.45;
