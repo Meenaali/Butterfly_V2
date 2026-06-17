@@ -45,7 +45,6 @@ from .troubleshooting import build_troubleshooting_plan
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 AUTH_COOKIE_NAME = "butterfly_session"
-ADMIN_AUTH_COOKIE_NAME = "butterfly_admin_session"
 AUTH_MAX_AGE_SECONDS = 60 * 60 * 12
 BUTTERFLY_PASSWORD = os.environ.get("BUTTERFLY_PASSWORD", "WBlot")
 BUTTERFLY_ADMIN_PASSWORD = os.environ.get("BUTTERFLY_ADMIN_PASSWORD", "butterfly-admin")
@@ -128,10 +127,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class AdminLoginRequest(BaseModel):
-    password: str
-
-
 class ProteinFirstPlanRequest(BaseModel):
     experiment: dict[str, Any] = Field(default_factory=dict)
     protein_intelligence: dict[str, Any] = Field(default_factory=dict)
@@ -141,15 +136,6 @@ class ProteinFirstPlanRequest(BaseModel):
 class DocumentDeleteRequest(BaseModel):
     filename: str = Field(min_length=1)
 
-
-class PilotIntakeRequest(BaseModel):
-    full_name: str | None = None
-    title: str = Field(min_length=1)
-    role: str = Field(min_length=1)
-    institution: str | None = None
-    email: str | None = None
-    experience_level: str = Field(min_length=1)
-    contact_for_follow_up: bool = True
 
 
 def _sign_session(kind: str, expires_at: int) -> str:
@@ -181,11 +167,6 @@ def _valid_session(cookie_value: str | None, kind: str) -> bool:
 def require_auth(butterfly_session: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME)) -> None:
     if not _valid_session(butterfly_session, "butterfly"):
         raise HTTPException(status_code=401, detail="Login required")
-
-
-def require_admin_auth(butterfly_admin_session: str | None = Cookie(default=None, alias=ADMIN_AUTH_COOKIE_NAME)) -> None:
-    if not _valid_session(butterfly_admin_session, "butterfly-admin"):
-        raise HTTPException(status_code=401, detail="Admin login required")
 
 
 def recommendation_to_dict(result: RecommendationResult) -> dict[str, Any]:
@@ -227,13 +208,6 @@ def auth_status(butterfly_session: str | None = Cookie(default=None, alias=AUTH_
     return {"authenticated": _valid_session(butterfly_session, "butterfly")}
 
 
-@app.get("/api/admin/status")
-def admin_auth_status(
-    butterfly_admin_session: str | None = Cookie(default=None, alias=ADMIN_AUTH_COOKIE_NAME),
-) -> dict[str, bool]:
-    return {"authenticated": _valid_session(butterfly_admin_session, "butterfly-admin")}
-
-
 @app.post("/api/auth/login")
 def login(request: LoginRequest, response: Response) -> dict[str, bool]:
     if not secrets.compare_digest(request.password, BUTTERFLY_PASSWORD):
@@ -251,42 +225,10 @@ def login(request: LoginRequest, response: Response) -> dict[str, bool]:
     return {"authenticated": True}
 
 
-@app.post("/api/admin/login", dependencies=[Depends(require_auth)])
-def admin_login(request: AdminLoginRequest, response: Response) -> dict[str, bool]:
-    if not secrets.compare_digest(request.password, BUTTERFLY_ADMIN_PASSWORD):
-        raise HTTPException(status_code=401, detail="Incorrect admin password")
-
-    expires_at = int(time.time()) + AUTH_MAX_AGE_SECONDS
-    response.set_cookie(
-        ADMIN_AUTH_COOKIE_NAME,
-        _sign_session("butterfly-admin", expires_at),
-        max_age=AUTH_MAX_AGE_SECONDS,
-        httponly=True,
-        samesite="lax",
-        secure=BUTTERFLY_COOKIE_SECURE,
-    )
-    return {"authenticated": True}
-
-
 @app.post("/api/auth/logout")
 def logout(response: Response) -> dict[str, bool]:
     response.delete_cookie(AUTH_COOKIE_NAME)
-    response.delete_cookie(ADMIN_AUTH_COOKIE_NAME)
     return {"authenticated": False}
-
-
-@app.post("/api/pilot-intake", dependencies=[Depends(require_auth)])
-def pilot_intake(request: PilotIntakeRequest) -> dict[str, Any]:
-    payload = request.model_dump()
-    if not payload.get("contact_for_follow_up"):
-        payload["full_name"] = None
-        payload["email"] = None
-    return create_pilot_submission(payload)
-
-
-@app.get("/api/pilot-submissions", dependencies=[Depends(require_admin_auth)])
-def pilot_submissions() -> list[dict[str, Any]]:
-    return list_pilot_submissions()
 
 
 @app.post("/api/analyze", dependencies=[Depends(require_auth)])
