@@ -986,15 +986,14 @@
     );
   }
 
-  function VirtualAssistantSection({ number, analyses, comparison, troubleshootingPlan, onGenerate, loading, onUploadDocuments, docUploadLoading, proteinIntelligence, onScanImage, scanLoading, scanResult, scanPreview }) {
-    const imageEvidence = buildImageEvidenceSummary(analyses);
+  function VirtualAssistantSection({ number, analyses, comparison, troubleshootingPlan, onGenerate, loading, proteinIntelligence, onScanImage, scanLoading, scanResult, scanPreview }) {
     return h(
       SectionCard,
       {
         number,
         title: "Virtual Assistant",
         subtitle:
-          "Upload a blot for Butterfly to read, or walk through the guided diagnosis. Either way you get ranked, proactive fixes — and an optional full analysis using your image, protein chemistry, saved runs, and any documents you add.",
+          "Upload a blot for Butterfly to read, or walk through the guided diagnosis. Either way you get ranked, proactive fixes — and an optional full analysis using your image, protein chemistry, and saved runs.",
       },
       h(
         "div",
@@ -1006,29 +1005,6 @@
           preview: scanPreview,
           analysis: analyses && analyses.final,
         }),
-        h(
-          "details",
-          { className: "assistant-optional" },
-          h("summary", null, "Optional context — improves the full analysis"),
-          h(
-            "div",
-            { className: "assistant-optional-body" },
-            h(
-              "div",
-              { className: "upload-card assistant-upload-card" },
-              h("label", null, "Upload supporting PDFs, TXT, or Markdown"),
-              h("input", { type: "file", accept: ".pdf,.txt,.md,text/plain,application/pdf,text/markdown", multiple: true, onChange: (event) => onUploadDocuments(event.target.files) }),
-              h("div", { className: "tiny-label" }, docUploadLoading ? "Uploading..." : "Add protocols, datasheets, or notes for Butterfly to use in the full analysis.")
-            ),
-            h(
-              "div",
-              { className: "lookup-card assistant-context-card" },
-              h("p", { className: "tiny-label" }, "What Butterfly is using"),
-              h("strong", null, imageEvidence.title),
-              h("p", { className: "status" }, imageEvidence.copy)
-            )
-          )
-        ),
         h(BranchTree, {
           proteinIntelligence,
           onRequestDetailed: onGenerate,
@@ -1301,6 +1277,29 @@
       setPath(["root"]);
     }
 
+    // Build a flowchart-style trail of the choices made so far.
+    const trailLabels = [];
+    for (let i = 0; i < path.length - 1; i += 1) {
+      const parent = DTREE[path[i]];
+      const childKey = path[i + 1];
+      const picked = parent && parent.options && parent.options.find((o) => o.next === childKey);
+      if (picked) trailLabels.push(picked.label);
+    }
+    const trailEl = trailLabels.length
+      ? h(
+          "div",
+          { className: "dtree-trail" },
+          trailLabels.map((label, idx) =>
+            h(
+              React.Fragment,
+              { key: idx },
+              idx > 0 ? h("span", { className: "dtree-trail-sep", "aria-hidden": "true" }, "→") : null,
+              h("span", { className: "dtree-trail-chip" }, label)
+            )
+          )
+        )
+      : null;
+
     if (node.type === "question") {
       const isRoot = currentKey === "root";
       return h(
@@ -1314,6 +1313,7 @@
               h("button", { type: "button", className: "dtree-back", onClick: back }, "‹ Back"),
               h("span", { className: "dtree-step-label" }, `Step ${path.length}`)
             ),
+        isRoot ? null : trailEl,
         h("h3", { className: isRoot ? "dtree-title" : "dtree-question" }, node.q),
         h("p", { className: isRoot ? "dtree-sub" : "dtree-why" }, node.why),
         isRoot
@@ -1355,6 +1355,7 @@
         h("button", { type: "button", className: "dtree-back", onClick: back }, "‹ Back"),
         h("span", { className: "dtree-step-label" }, node.title)
       ),
+      trailEl,
       h("h3", { className: "dtree-title" }, "Try these, in order"),
       h("p", { className: "dtree-sub" }, "Ranked by how likely each is to fix your blot, based on your answers. Change one thing at a time."),
       h(
@@ -1678,17 +1679,25 @@
     );
   }
 
-  function AIInterpretationCard({ interpretation, compact }) {
+  function AIInterpretationCard({ interpretation }) {
     return h(
       "div",
-      { className: compact ? "lookup-card ai-card" : "recommendation-card comparison-card-wide ai-card" },
-      h("p", { className: "tiny-label" }, `AI image interpretation${interpretation.source === "fallback" ? " · fallback mode" : interpretation.model ? ` · ${interpretation.model}` : ""}`),
-      h("p", { className: "status" }, interpretation.summary),
-      interpretation.quality_flags?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Quality flags"), h("ul", null, interpretation.quality_flags.map((item, index) => h("li", { key: index }, item)))) : null,
-      interpretation.band_interpretation?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Band interpretation"), h("ul", null, interpretation.band_interpretation.map((item, index) => h("li", { key: index }, item)))) : null,
-      interpretation.possible_causes?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Possible causes"), h("ul", null, interpretation.possible_causes.map((item, index) => h("li", { key: index }, item)))) : null,
-      interpretation.next_steps?.length ? h(React.Fragment, null, h("p", { className: "tiny-label" }, "Next steps"), h("ul", null, interpretation.next_steps.map((item, index) => h("li", { key: index }, item)))) : null,
-      interpretation.confidence ? h("div", { className: "score-pill score-warn" }, interpretation.confidence) : null
+      { className: "ai-scan-card" },
+      h("p", { className: "tiny-label" }, `Image read${interpretation.source === "fallback" ? " · Butterfly scan" : interpretation.model ? ` · ${interpretation.model}` : ""}`),
+      h("p", { className: "ai-scan-summary" }, interpretation.summary),
+      interpretation.quality_flags?.length
+        ? h(
+            "div",
+            { className: "ai-flag-row" },
+            interpretation.quality_flags.map((item, index) => h("span", { className: "ai-flag", key: index }, item))
+          )
+        : null,
+      interpretation.possible_causes?.length
+        ? h(React.Fragment, null, h("p", { className: "ai-scan-label" }, "Likely causes"), h("ul", { className: "ai-scan-list" }, interpretation.possible_causes.slice(0, 4).map((item, index) => h("li", { key: index }, item))))
+        : null,
+      interpretation.next_steps?.length
+        ? h(React.Fragment, null, h("p", { className: "ai-scan-label" }, "Do next"), h("ul", { className: "ai-scan-list" }, interpretation.next_steps.slice(0, 4).map((item, index) => h("li", { key: index }, item))))
+        : null
     );
   }
 

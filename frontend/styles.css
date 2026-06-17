@@ -1085,6 +1085,87 @@ textarea:focus {
   line-height: 1.5;
 }
 
+/* Image-read card — matches the grey-green suggestion box, not the green panel */
+.ai-scan-card {
+  margin-top: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 14px;
+  background: rgba(15, 90, 66, 0.08);
+  border: 1px solid var(--dtree-line);
+  color: var(--dtree-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+
+.ai-scan-summary {
+  margin: 0.25rem 0 0.9rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--dtree-ink);
+}
+
+.ai-scan-label {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--dtree-muted);
+}
+
+.ai-scan-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--dtree-ink);
+}
+
+.ai-flag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.3rem;
+}
+
+.ai-flag {
+  display: inline-block;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 90, 66, 0.14);
+  color: var(--dtree-accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Flowchart-style trail of choices */
+.dtree-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1.1rem;
+}
+
+.dtree-trail-chip {
+  display: inline-block;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 90, 66, 0.08);
+  border: 1px solid var(--dtree-line);
+  color: var(--dtree-ink);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.dtree-trail-sep {
+  color: var(--dtree-muted);
+  font-size: 0.9rem;
+}
+
 .dtree-symptom-blurb {
   font-size: 0.92rem;
   line-height: 1.45;
