@@ -57,15 +57,6 @@
   };
 
 
-  const pilotTasks = [
-    "Use Protein Intelligence with a UniProt ID or FASTA sequence.",
-    "Generate a first-pass Predictive Strategy and review the workflow cards.",
-    "Check antibody compatibility with real product URLs if available.",
-    "Log a real or recent blot in Experiment Log.",
-    "Run the final image integrity screen on a blot image if available.",
-    "Use Virtual Assistant for one troubleshooting scenario.",
-  ];
-
   function App() {
     const [authChecked, setAuthChecked] = useState(false);
     const [authenticated, setAuthenticated] = useState(false);
