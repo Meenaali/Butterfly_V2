@@ -899,7 +899,11 @@
           }),
           h("p", { className: "tiny-label" }, "Predictive protein intelligence"),
           h("div", { className: "tag-row" }, tag("UniProt"), tag("FASTA"), tag("AlphaFold"), tag("EMBL-EBI"), tag("PDB context"), tag("Protein chemistry")),
-          proteinIntelligence ? h(ProteinIntelligencePane, { proteinIntelligence }) : h("div", { className: "empty-state" }, "Start by entering a UniProt ID, FASTA sequence, or both. Butterfly will then show predictive protein intelligence for you to review before moving to the predictive model.")
+          proteinIntelligence
+            ? h(ProteinIntelligencePane, { proteinIntelligence })
+            : proteinIntelLoading
+            ? h("div", { className: "empty-state" }, h("p", { style: { fontSize: "16px", fontWeight: "500" } }, "🔬 Fetching protein intelligence..."), h("p", { style: { fontSize: "13px", color: "#666", marginTop: "8px" } }, "Retrieving data from UniProt, AlphaFold, and EMBL-EBI (this takes ~3 seconds)"))
+            : h("div", { className: "empty-state" }, "Start by entering a UniProt ID, FASTA sequence, or both. Butterfly will then show predictive protein intelligence for you to review before moving to the predictive model.")
         )
       )
     );
