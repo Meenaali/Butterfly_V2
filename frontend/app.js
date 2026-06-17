@@ -1034,6 +1034,17 @@
           ],
         },
         {
+          id: "blocking",
+          q: "Is your blocking strong or prolonged (e.g. 5% milk, or blocking overnight)?",
+          why: "Over-blocking can mask the epitope and out-compete the antibody, suppressing signal — especially for low-abundance or phospho targets.",
+          options: [
+            { label: "Yes — 5% and/or long / overnight", tips: [
+              { title: "Reduce blocker concentration and time (e.g. 5% → 2–3%, 1 h at RT)", why: "Too much blocker can coat the epitope and lower signal; a lighter block often recovers faint bands.", impact: 0.72, effort: "Trivial" },
+            ] },
+            { label: "No — moderate (≤3%, ~1 h)", tips: [] },
+          ],
+        },
+        {
           id: "washing",
           q: "Are your washes long or harsh (several 10-min TBST washes)?",
           why: "Over-washing strips weak signal from lower-affinity antibodies.",
@@ -1078,6 +1089,17 @@
             ] },
             { label: "Yes, milk — total protein", tips: [] },
             { label: "No, BSA / other", tips: [] },
+          ],
+        },
+        {
+          id: "overblock",
+          q: "Have you been raising blocker concentration to fight the background?",
+          why: "Piling on blocker (e.g. 5%+ milk) trades background for lost signal and rarely fixes the real cause.",
+          options: [
+            { label: "Yes — I keep increasing it", tips: [
+              { title: "Stop over-blocking — keep blocker ~3% and fix washes/secondary first", why: "Excess blocker suppresses true signal without curing background; thorough washing and a more dilute secondary address the actual cause.", impact: 0.6, effort: "Trivial" },
+            ] },
+            { label: "No — it's been steady", tips: [] },
           ],
         },
         {
