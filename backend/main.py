@@ -21,11 +21,9 @@ from .ai_interpretation import interpret_blot_image
 from .antibody_compatibility import check_antibody_compatibility
 from .database import (
     create_experiment,
-    create_pilot_submission,
     get_experiment,
     init_db,
     list_experiments,
-    list_pilot_submissions,
     update_experiment,
 )
 from .documents import delete_document, index_status, rebuild_document_index, save_uploaded_document
