@@ -1373,6 +1373,68 @@ textarea:focus {
   margin-top: 1.3rem;
 }
 
+/* Step 1 — "What this means for your blot" inline learning layer */
+.intel-why {
+  margin-top: 1.1rem;
+  padding: 1.2rem 1.3rem;
+  border: 1px solid var(--dtree-line, rgba(0,0,0,0.08));
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 14px 40px rgba(8, 55, 39, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+
+.intel-why-kicker {
+  margin: 0 0 0.9rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0f5a42;
+}
+
+.intel-why-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.8rem;
+}
+
+.intel-why-card {
+  padding: 0.95rem 1.05rem;
+  border-radius: 14px;
+  background: rgba(15, 90, 66, 0.06);
+  border: 1px solid rgba(15, 90, 66, 0.12);
+}
+
+.intel-why-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.intel-why-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #1d1d1f;
+}
+
+.intel-why-value {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0f5a42;
+  white-space: nowrap;
+}
+
+.intel-why-text {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #44524b;
+}
+
 .dtree-symptom-blurb {
   font-size: 0.92rem;
   line-height: 1.45;

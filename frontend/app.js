@@ -1550,6 +1550,81 @@
     );
   }
 
+  // Turn raw protein chemistry into plain-language "what this means for your
+  // blot" guidance — the "understand, don't just follow" layer for Step 1.
+  function proteinBlotInsights(pi) {
+    const chem = (pi && pi.chemistry) || {};
+    const af = (pi && pi.alphafold) || {};
+    const insights = [];
+
+    const mw = chem.molecular_weight_kda;
+    if (mw !== undefined && mw !== null && mw !== "") {
+      const n = Number(mw);
+      let meaning;
+      if (n < 15) meaning = "Small protein — use a higher-percentage gel (12–15%) and watch it doesn't run off the front.";
+      else if (n <= 60) meaning = "Mid-size — resolves cleanly on a standard 10–12% gel.";
+      else if (n <= 120) meaning = "On the larger side — an 8–10% gel and a longer (ideally wet) transfer help it move.";
+      else meaning = "Large protein — use a low-percentage gel (6–8%) and an extended wet transfer; expect slower, harder transfer.";
+      insights.push({ label: "Molecular weight", value: `${Math.round(n)} kDa`, meaning });
+    }
+
+    const pIVal = chem.theoretical_pI;
+    if (pIVal !== undefined && pIVal !== null && pIVal !== "") {
+      const n = Number(pIVal);
+      let meaning;
+      if (n < 5.5) meaning = "Acidic — net-negative at neutral pH, so it usually transfers well in standard buffers.";
+      else if (n <= 8) meaning = "Near-neutral charge — standard transfer and blocking conditions are a good starting point.";
+      else meaning = "Basic — basic proteins can transfer poorly at standard pH; consider transfer-buffer pH or a longer transfer.";
+      insights.push({ label: "Isoelectric point (pI)", value: n, meaning });
+    }
+
+    const memRisk = chem.membrane_retention_risk;
+    const hydDomains = Number(chem.hydrophobic_domain_count || 0);
+    if (memRisk || hydDomains) {
+      const hydrophobic = memRisk === "high" || hydDomains > 0;
+      insights.push({
+        label: "Hydrophobicity",
+        value: memRisk ? `${memRisk} retention` : `${hydDomains} domain(s)`,
+        meaning: hydrophobic
+          ? "Hydrophobic / membrane-associated — prefer PVDF + gentle wet transfer, allow longer blocking, and don't over-boil (it can aggregate)."
+          : "Largely soluble — standard transfer and blocking should work well.",
+      });
+    }
+
+    const agg = chem.aggregation_risk;
+    if (agg) {
+      insights.push({
+        label: "Aggregation risk",
+        value: agg,
+        meaning: agg === "high" || agg === "moderate"
+          ? "Aggregation-prone — keep lysate cold, use fresh reducing buffer, and avoid overheating; high-MW smears are a risk."
+          : "Low aggregation risk — standard sample prep should be fine.",
+      });
+    }
+
+    if (af && af.available) {
+      const plddt = Number(af.mean_plddt || 0);
+      insights.push({
+        label: "Structure confidence",
+        value: `pLDDT ${af.mean_plddt}`,
+        meaning: plddt >= 70
+          ? "High-confidence predicted structure — accessibility and domain cues are reliable."
+          : "Lower-confidence or possibly disordered — treat structural cues as rough guidance.",
+      });
+    }
+
+    const cleavage = Number(chem.cleavage_site_count || 0);
+    if (cleavage > 0) {
+      insights.push({
+        label: "Processing sites",
+        value: `${cleavage}`,
+        meaning: "Has cleavage/processing sites — you may see processed bands below the full-length size, which can look like extra bands.",
+      });
+    }
+
+    return insights;
+  }
+
   function ProteinIntelligencePane({ proteinIntelligence }) {
     const identity = proteinIntelligence.uniprot || {};
     const chemistry = proteinIntelligence.chemistry || {};
@@ -1579,10 +1654,36 @@
       identity.reviewed ? `Reviewed status: ${identity.reviewed}` : null,
     ].filter(Boolean);
 
+    const insights = proteinBlotInsights(proteinIntelligence);
+
     return h(
       "div",
       { className: "intel-results" },
       h("div", { className: "metric-grid" }, metricBlock("Accession", proteinIntelligence.resolved_accession || "Not resolved"), metricBlock("Predicted pI", chemistry.theoretical_pI ?? "n/a"), metricBlock("MW (kDa)", chemistry.molecular_weight_kda ?? "n/a"), metricBlock("AlphaFold pLDDT", proteinIntelligence.alphafold?.mean_plddt ?? "n/a"), metricBlock("Membrane retention risk", chemistry.membrane_retention_risk ?? "n/a"), metricBlock("Aggregation risk", chemistry.aggregation_risk ?? "n/a")),
+      insights.length
+        ? h(
+            "div",
+            { className: "intel-why" },
+            h("p", { className: "intel-why-kicker" }, "What this means for your blot"),
+            h(
+              "div",
+              { className: "intel-why-grid" },
+              insights.map((item, index) =>
+                h(
+                  "div",
+                  { className: "intel-why-card", key: index },
+                  h(
+                    "div",
+                    { className: "intel-why-head" },
+                    h("span", { className: "intel-why-label" }, item.label),
+                    h("span", { className: "intel-why-value" }, String(item.value))
+                  ),
+                  h("p", { className: "intel-why-text" }, item.meaning)
+                )
+              )
+            )
+          )
+        : null,
       h(
         "div",
         { className: "protein-evidence-grid" },
