@@ -764,14 +764,14 @@
             "div",
             { className: "intel-required-note" },
             h("strong", null, "To begin, give Butterfly one of two things:"),
-            " a ", h("span", { className: "intel-req-em" }, "UniProt ID"), " or a pasted ", h("span", { className: "intel-req-em" }, "FASTA sequence"), ". Either one is enough — everything else is optional."
+            " a ", h("span", { className: "intel-req-em" }, "UniProt ID"), " or a pasted ", h("span", { className: "intel-req-em" }, "FASTA sequence"), ". Either one is enough, everything else is optional."
           ),
           h(
             "div",
             { className: "entry-card-grid" },
             h(
               FieldGroup,
-              { title: "Option A · UniProt ID", copy: "Fastest route — Butterfly pulls identity, structure, and features automatically." },
+              { title: "Option A · UniProt ID", copy: "Fastest route, Butterfly pulls identity, structure, and features automatically." },
               renderInput("UniProt ID", experiment.uniprot_id, (value) => updateField("uniprot_id", value)),
               renderInput("Experiment title (optional)", experiment.title, (value) => updateField("title", value)),
               renderInput("Target protein (optional)", experiment.protein_name, (value) => updateField("protein_name", value)),
@@ -862,15 +862,15 @@
         title: "Sample preparation",
         value: prepVal,
         why: aggregation || hydrophobic
-          ? `Aggregation/membrane risk is elevated — boiling can aggregate this protein, so denature gently.`
-          : `Standard globular protein — full denaturation at 95 °C is fine.`,
+          ? `Aggregation/membrane risk is elevated, boiling can aggregate this protein, so denature gently.`
+          : `Standard globular protein, full denaturation at 95 °C is fine.`,
         options: ["Reducing Laemmli; heat 95 °C / 5 min", "Reducing Laemmli; heat 70 °C / 10 min (do NOT boil)", "Reducing Laemmli; 37 °C / 30 min (membrane protein)", "Non-reducing (native epitope)"],
       },
       {
         id: "gel",
         title: "Gel percentage",
         value: `${gel} SDS-PAGE`,
-        why: `Predicted MW ≈ ${mw || "?"} kDa — ${gel} resolves this size range best.`,
+        why: `Predicted MW ≈ ${mw || "?"} kDa, ${gel} resolves this size range best.`,
         options: ["6% SDS-PAGE", "7.5% SDS-PAGE", "8% SDS-PAGE", "10% SDS-PAGE", "12% SDS-PAGE", "15% SDS-PAGE", "4–20% gradient"],
       },
       {
@@ -892,10 +892,10 @@
         title: "Transfer",
         value: transferVal,
         why: mw >= 100
-          ? `Large protein (${mw} kDa) transfers slowly — longer/wet transfer with less methanol helps it move.`
+          ? `Large protein (${mw} kDa) transfers slowly, longer/wet transfer with less methanol helps it move.`
           : mw <= 25
-          ? `Small protein (${mw} kDa) transfers fast — watch for blow-through.`
-          : `Mid-size protein — standard wet transfer.`,
+          ? `Small protein (${mw} kDa) transfers fast, watch for blow-through.`
+          : `Mid-size protein, standard wet transfer.`,
         options: ["Wet transfer, 60–90 min", "Wet transfer, 90 min, 10% methanol", "Wet transfer, overnight 4 °C", "Semi-dry, 30–45 min"],
       },
       {
@@ -903,24 +903,24 @@
         title: "Blocking",
         value: blockingVal,
         why: phospho
-          ? "Phospho-specific antibody — milk phospho-proteins raise background, so use BSA."
+          ? "Phospho-specific antibody, milk phospho-proteins raise background, so use BSA."
           : glyco
-          ? "Glycoprotein — BSA avoids milk lectin-like interactions."
-          : "Standard target — milk is an economical first choice.",
+          ? "Glycoprotein, BSA avoids milk lectin-like interactions."
+          : "Standard target, milk is an economical first choice.",
         options: ["5% non-fat milk in TBST", "3–5% BSA in TBST", "5% milk + 0.1% Tween", "Commercial blocking buffer"],
       },
       {
         id: "primary",
         title: "Primary antibody",
         value: primaryVal,
-        why: `Abundance is ${abundance} — ${abundance === "low" ? "start more concentrated and incubate cold/overnight" : abundance === "high" ? "start dilute to avoid saturation" : "a 1:1000 overnight is a safe first pass"}.`,
+        why: `Abundance is ${abundance}, ${abundance === "low" ? "start more concentrated and incubate cold/overnight" : abundance === "high" ? "start dilute to avoid saturation" : "a 1:1000 overnight is a safe first pass"}.`,
         options: ["Start 1:500–1:1000, overnight 4 °C", "Start 1:1000, overnight 4 °C", "Start 1:2000–1:5000, 1 h RT", "Manufacturer's recommended dilution"],
       },
       {
         id: "wash",
         title: "Washing",
         value: washVal,
-        why: phospho ? "Phospho workflows benefit from thorough washing." : abundance === "low" ? "Low-abundance signal is easily over-washed — keep it gentle." : "Standard washing.",
+        why: phospho ? "Phospho workflows benefit from thorough washing." : abundance === "low" ? "Low-abundance signal is easily over-washed, keep it gentle." : "Standard washing.",
         options: ["3 × 5 min TBST", "3 × 5–10 min TBST", "4 × 5 min TBST"],
       },
       {
@@ -945,7 +945,7 @@
     const [copied, setCopied] = useState(false);
 
     if (!ready) {
-      return h("div", { className: "empty-state" }, "Run Protein Intelligence in Stage 1 first — Butterfly builds the protocol from your protein's size, charge, hydrophobicity, processing and glycosylation.");
+      return h("div", { className: "empty-state" }, "Run Protein Intelligence in Stage 1 first, Butterfly builds the protocol from your protein's size, charge, hydrophobicity, processing and glycosylation.");
     }
 
     const decisions = buildProtocolDecisions(proteinIntelligence, { abundance, phospho });
@@ -1028,10 +1028,10 @@
     const targetName = identity.protein_name || proteinIntelligence.resolved_accession || "your target";
     const abStrategy = [
       bestRegion && avoid.length
-        ? `Target an epitope in an accessible region — the largest is residues ${bestRegion.begin}–${bestRegion.end}. Avoid transmembrane/signal stretches (buried in the membrane or cleaved off).`
-        : "Most of the chain is accessible — pick an epitope unique to your protein and away from conserved family motifs.",
+        ? `Target an epitope in an accessible region, the largest is residues ${bestRegion.begin}–${bestRegion.end}. Avoid transmembrane/signal stretches (buried in the membrane or cleaved off).`
+        : "Most of the chain is accessible, pick an epitope unique to your protein and away from conserved family motifs.",
       "Choose a primary raised in a species different from your sample, and match the secondary to that host. A validated recombinant/monoclonal gives the cleanest single band; a polyclonal gives stronger but multi-epitope signal.",
-      glyco > 0 ? "Glycoprotein — prefer antibodies validated on the native form; the band may shift with glycosylation." : null,
+      glyco > 0 ? "Glycoprotein, prefer antibodies validated on the native form; the band may shift with glycosylation." : null,
       `Find validated options: search CiteAb or BenchSci for “${targetName} western blot”, favouring antibodies with WB validation images and citations.`,
     ].filter(Boolean);
 
@@ -1085,7 +1085,7 @@
       h(
         "div",
         { className: "proto-context" },
-        h("p", { className: "proto-context-head" }, "Butterfly cannot determine these parameters from the sequence alone — please select the most appropriate options"),
+        h("p", { className: "proto-context-head" }, "Butterfly cannot determine these parameters from the sequence alone, please select the most appropriate options"),
         h("p", { className: "proto-context-sub" }, "Your answers tune the load, blocking, antibody and detection choices below. Tap to select."),
         h(
           "div",
@@ -1131,7 +1131,7 @@
                 { className: "intel-apple-card proto-ab" },
                 h("p", { className: "intel-why-kicker" }, "How to choose the antibody"),
                 h("ul", { className: "proto-ab-list" }, abStrategy.map((t, i) => h("li", { key: i }, t))),
-                h("p", { className: "proto-ab-note" }, "This tells you what to look for. The next tab — Antibody Compatibility — checks a specific antibody you've chosen (paste its product URL) for host/isotype/secondary match and validation evidence. Different jobs: here you decide what to buy; there you verify what you bought.")
+                h("p", { className: "proto-ab-note" }, "This tells you what to look for. The next tab, Antibody Compatibility, checks a specific antibody you've chosen (paste its product URL) for host/isotype/secondary match and validation evidence. Different jobs: here you decide what to buy; there you verify what you bought.")
               )
             : null
         )
@@ -1167,6 +1167,7 @@
         "Total-protein normalisation is more robust than a single housekeeping gene, which can change with treatment, tissue, or disease state.",
         "Pick a control at a different molecular weight from your target so both resolve cleanly.",
         "Housekeeping proteins are very abundant and saturate easily, so keep them in the linear range or use total protein instead.",
+        "Stain-free technology images total protein directly: a trihalo compound in the gel reacts with tryptophan residues under UV, so you can verify loading and transfer efficiency without a separate stain or a housekeeping antibody.",
       ],
     },
     {
@@ -1192,6 +1193,8 @@
         "Even illumination and flat-field correction matter for fluorescence, because uneven lighting mimics real intensity differences.",
         "Save the raw, lossless 16-bit TIFF. JPEG compression and 8-bit conversion discard quantitative data.",
         "Do not apply non-linear adjustments (gamma, curves, local brightness or contrast) to a blot you will quantify or publish. Only linear adjustments applied to the whole image are acceptable, and they must be disclosed.",
+        "Film versus digital: X-ray film has a non-linear response and a narrow linear range, so it is poor for quantification. A digital CCD or sCMOS imager gives linear, quantifiable output and a file you can archive.",
+        "Multiplex fluorescence: when two targets are read in different channels, watch for spectral bleed-through (signal from one fluorophore leaking into another channel). Use spectrally distinct dyes, single-stain controls, and proper channel separation to confirm each signal is real.",
       ],
     },
     {
@@ -1392,11 +1395,11 @@
   const AB_PAIRING_RULES = [
     {
       title: "The secondary must target the primary's host",
-      body: "An anti-rabbit secondary only detects a rabbit primary. A host mismatch is the #1 cause of a totally blank blot — the detection antibody simply has nothing to bind.",
+      body: "An anti-rabbit secondary only detects a rabbit primary. A host mismatch is the #1 cause of a totally blank blot, because the detection antibody has nothing to bind.",
     },
     {
       title: "Validated for Western blot specifically",
-      body: "An antibody validated for IHC, IF or ELISA may fail in WB, because WB needs the epitope to survive SDS denaturation. A vendor listing it for “WB” is a claim, not proof — look for an actual WB image on the datasheet.",
+      body: "An antibody validated for IHC, IF or ELISA may fail in WB, because WB needs the epitope to survive SDS denaturation. A vendor listing it for “WB” is a claim, not proof. Look for an actual WB image on the datasheet.",
     },
     {
       title: "A vendor selling it ≠ it works",
@@ -1421,7 +1424,7 @@
       "div",
       { className: "intel-apple-card ab-knowledge" },
       h("p", { className: "intel-why-kicker" }, "What a good antibody pairing needs"),
-      h("p", { className: "domain-sub" }, "Before you trust a product, check it against these principles — most failed blots trace back to one of them."),
+      h("p", { className: "domain-sub" }, "Before you trust a product, check it against these principles, most failed blots trace back to one of them."),
       h(
         "div",
         { className: "ab-rules-grid" },
@@ -1485,12 +1488,12 @@
         "p",
         { className: "domain-sub" },
         target
-          ? `Independent papers that used a Western blot antibody for ${target}. Citations are the strongest evidence a clone actually works — check whether your candidate (or its clone) appears here.`
+          ? `Independent papers that used a Western blot antibody for ${target}. Citations are the strongest evidence a clone actually works, check whether your candidate (or its clone) appears here.`
           : "Add a primary target above and Butterfly will pull independent Western blot papers from the literature (via Europe PMC / PubMed)."
       ),
       status === "loading" ? h("p", { className: "ab-lit-state" }, "Searching PubMed / Europe PMC…") : null,
-      status === "error" ? h("p", { className: "ab-lit-state" }, h("a", { href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "Couldn't load automatically — search PubMed directly →")) : null,
-      status === "empty" ? h("p", { className: "ab-lit-state" }, "No direct matches — broaden the target name, or ", h("a", { href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "search PubMed →")) : null,
+      status === "error" ? h("p", { className: "ab-lit-state" }, h("a", { href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "Couldn't load automatically, search PubMed directly →")) : null,
+      status === "empty" ? h("p", { className: "ab-lit-state" }, "No direct matches, broaden the target name, or ", h("a", { href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "search PubMed →")) : null,
       status === "ready"
         ? h(
             "div",
@@ -1513,7 +1516,7 @@
     const target = experiment.primary_target || (proteinIntelligence && proteinIntelligence.uniprot && proteinIntelligence.uniprot.protein_name) || experiment.protein_name || "";
     return h(
       SectionCard,
-      { number, title: "Antibody Compatibility", subtitle: "Stage 2 told you what to look for. Here you verify a specific primary + secondary you've chosen — and learn why a product on sale may still not work." },
+      { number, title: "Antibody Compatibility", subtitle: "Stage 2 told you what to look for. Here you verify a specific primary + secondary you've chosen, and learn why a product on sale may still not work." },
       h(
         "div",
         { className: "ab-section" },
@@ -1589,7 +1592,7 @@
         number,
         title: "Virtual Assistant",
         subtitle:
-          "Upload a blot for Butterfly to read, or walk through the guided diagnosis. Either way you get ranked, proactive fixes — and an optional full analysis using your image and protein chemistry.",
+          "Upload a blot for Butterfly to read, or walk through the guided diagnosis. Either way you get ranked, proactive fixes, and an optional full analysis using your image and protein chemistry.",
       },
       h(
         "div",
@@ -1618,7 +1621,7 @@
     root: {
       type: "question",
       q: "What's the main problem with your blot?",
-      why: "Start with the dominant symptom — Butterfly will branch to the most likely root cause.",
+      why: "Start with the dominant symptom, Butterfly will branch to the most likely root cause.",
       options: [
         { label: "No signal or very weak signal", next: "C1" },
         { label: "High background or haze", next: "D1" },
@@ -1635,7 +1638,7 @@
       why: "Confirm the protein actually exists in the sample before chasing transfer or antibody issues.",
       options: [
         { label: "No, or I haven't checked", next: "C2" },
-        { label: "Yes — it's there", next: "C3" },
+        { label: "Yes, it's there", next: "C3" },
       ],
     },
     C2: {
@@ -1645,16 +1648,16 @@
       fixes: [
         { title: "Confirm expression with a positive-control lysate", why: "Tells you whether the target is even present before changing the blot method.", impact: 0.85, effort: "Moderate" },
         { title: "Add protease inhibitors and keep samples cold", why: "Degradation during handling can remove the target entirely.", impact: 0.7, effort: "Trivial" },
-        { title: "Increase load and check lysis efficiency", why: "Too little target — or poor lysis — gives no signal regardless of antibody.", impact: 0.65, effort: "Easy" },
+        { title: "Increase load and check lysis efficiency", why: "Too little target, or poor lysis, gives no signal regardless of antibody.", impact: 0.65, effort: "Easy" },
       ],
     },
     C3: {
       type: "question",
-      q: "Did the transfer work — is a Ponceau / total-protein stain even?",
+      q: "Did the transfer work, is a Ponceau / total-protein stain even?",
       why: "If protein didn't reach the membrane, no antibody change will rescue the blot.",
       options: [
         { label: "No, or I didn't check", next: "C4" },
-        { label: "Yes — transfer looks good", next: "C5" },
+        { label: "Yes, transfer looks good", next: "C5" },
       ],
     },
     C4: {
@@ -1673,7 +1676,7 @@
       why: "With protein and transfer confirmed, the antibody is the next thing to rule out.",
       options: [
         { label: "No, or I'm unsure", next: "C6" },
-        { label: "Yes — it's well validated", next: "C7" },
+        { label: "Yes, it's well validated", next: "C7" },
       ],
     },
     C6: {
@@ -1688,7 +1691,7 @@
     },
     C7: {
       type: "question",
-      q: "Which step is most suspect — blocking, washing, or detection?",
+      q: "Which step is most suspect, blocking, washing, or detection?",
       why: "With protein, transfer, and antibody all sound, weak signal usually traces to one of these.",
       options: [
         { label: "Blocking", next: "C8" },
@@ -1701,7 +1704,7 @@
       backend: "no signal",
       title: "Tune the blocking step",
       fixes: [
-        { title: "Avoid over-blocking — reduce to 2–3%, ~1 h at RT", why: "Too much blocker can coat the epitope and out-compete the antibody, suppressing signal.", impact: 0.72, effort: "Trivial" },
+        { title: "Avoid over-blocking, reduce to 2–3%, ~1 h at RT", why: "Too much blocker can coat the epitope and out-compete the antibody, suppressing signal.", impact: 0.72, effort: "Trivial" },
         { title: "Test BSA vs milk (BSA for phospho targets)", why: "The wrong blocker can mask the target or add noise; BSA suits phospho-specific antibodies.", impact: 0.6, effort: "Easy" },
       ],
     },
@@ -1720,7 +1723,7 @@
       title: "Boost detection",
       fixes: [
         { title: "Switch to a high-sensitivity ECL substrate", why: "Raises detection for rare targets without overloading the gel.", impact: 0.75, effort: "Easy" },
-        { title: "Increase exposure — capture short/medium/long", why: "Reveals weak signal and lets you choose the cleanest exposure.", impact: 0.6, effort: "Trivial" },
+        { title: "Increase exposure, capture short/medium/long", why: "Reveals weak signal and lets you choose the cleanest exposure.", impact: 0.6, effort: "Trivial" },
       ],
     },
 
@@ -1740,8 +1743,8 @@
       title: "Reduce uniform background",
       fixes: [
         { title: "Dilute the secondary antibody one step further", why: "Excess secondary is the most common cause of uniform background.", impact: 0.82, effort: "Trivial" },
-        { title: "Increase wash volume — 4 × 8–10 min TBST", why: "Thorough washing clears unbound antibody across the whole membrane.", impact: 0.7, effort: "Trivial" },
-        { title: "Don't over-block to fix it — keep blocker ~3%", why: "Piling on blocker trades background for lost signal; fix washes/secondary first.", impact: 0.6, effort: "Trivial" },
+        { title: "Increase wash volume, 4 × 8–10 min TBST", why: "Thorough washing clears unbound antibody across the whole membrane.", impact: 0.7, effort: "Trivial" },
+        { title: "Don't over-block to fix it, keep blocker ~3%", why: "Piling on blocker trades background for lost signal; fix washes/secondary first.", impact: 0.6, effort: "Trivial" },
         { title: "Switch blocker (milk ↔ BSA; BSA for phospho)", why: "Blocker mismatch with the antibody biology adds background.", impact: 0.55, effort: "Easy" },
         { title: "Shorten exposure if imaging is the issue", why: "Long exposure surfaces low-level noise as apparent background.", impact: 0.5, effort: "Trivial" },
       ],
@@ -1751,7 +1754,7 @@
       backend: "high background",
       title: "Fix localised background",
       fixes: [
-        { title: "Keep the membrane fully wet — avoid drying", why: "Dry spots bind antibody non-specifically and show as patches.", impact: 0.7, effort: "Trivial" },
+        { title: "Keep the membrane fully wet, avoid drying", why: "Dry spots bind antibody non-specifically and show as patches.", impact: 0.7, effort: "Trivial" },
         { title: "Remove bubbles and ensure even reagent coverage", why: "Uneven contact during incubation produces localised background.", impact: 0.6, effort: "Trivial" },
         { title: "Filter or freshly prepare antibody & blocker; clean trays", why: "Particulates and precipitated antibody cause speckled background.", impact: 0.55, effort: "Easy" },
       ],
@@ -1826,7 +1829,7 @@
       backend: "high background",
       title: "Reduce saturation / overexposure",
       fixes: [
-        { title: "Shorten exposure and capture an exposure series", why: "Saturated pixels hide true band shape and background — shorter exposures recover detail.", impact: 0.85, effort: "Trivial" },
+        { title: "Shorten exposure and capture an exposure series", why: "Saturated pixels hide true band shape and background, shorter exposures recover detail.", impact: 0.85, effort: "Trivial" },
         { title: "Reduce antibody or use a weaker substrate", why: "Too much signal saturates the detector; dialling it back restores dynamic range.", impact: 0.65, effort: "Trivial" },
         { title: "Lower protein loading", why: "Less target lowers an over-strong signal into the measurable range.", impact: 0.55, effort: "Easy" },
       ],
@@ -1880,7 +1883,7 @@
     }
 
     // Build the visual trail: every answered step, the choice made between them,
-    // and the current step. Vertical flow — focused, with no overlapping boxes.
+    // and the current step. Vertical flow, focused, with no overlapping boxes.
     const trail = [];
     path.forEach((key, index) => {
       const stepNode = DTREE[key];
@@ -2022,7 +2025,7 @@
       { className: "dtree" },
       h("p", { className: "dtree-kicker" }, "Guided troubleshooting"),
       h("h3", { className: "dtree-title" }, "Follow the trail to a fix"),
-      h("p", { className: "dtree-sub" }, "Answer each question — your choices map out below until Butterfly reaches the most likely fixes. Tap any earlier step to change your answer."),
+      h("p", { className: "dtree-sub" }, "Answer each question, your choices map out below until Butterfly reaches the most likely fixes. Tap any earlier step to change your answer."),
       h("div", { className: "flow-trail" }, trail, tail),
       h("div", { className: "flow-restart-row" }, h("button", { type: "button", className: "dtree-restart", onClick: restart }, "Start over"))
     );
@@ -2048,7 +2051,7 @@
       "div",
       { className: "dtree blot-scanner" },
       h("p", { className: "dtree-kicker" }, "Scan a blot image"),
-      h("h3", { className: "dtree-title" }, "Upload your blot — Butterfly will read it"),
+      h("h3", { className: "dtree-title" }, "Upload your blot, Butterfly will read it"),
       h("p", { className: "dtree-sub" }, "Butterfly measures contrast, background evenness, saturation, lane variation, and asymmetry, then suggests proactive steps. Nothing is sent to any external service."),
       h(
         "label",
@@ -2147,7 +2150,7 @@
   }
 
   // Turn raw protein chemistry into plain-language "what this means for your
-  // blot" guidance — the "understand, don't just follow" layer for Step 1.
+  // blot" guidance, the "understand, don't just follow" layer for Step 1.
   function proteinBlotInsights(pi) {
     const chem = (pi && pi.chemistry) || {};
     const af = (pi && pi.alphafold) || {};
@@ -2157,10 +2160,10 @@
     if (mw !== undefined && mw !== null && mw !== "") {
       const n = Number(mw);
       let meaning;
-      if (n < 15) meaning = "Small protein — use a higher-percentage gel (12–15%) and watch it doesn't run off the front.";
-      else if (n <= 60) meaning = "Mid-size — resolves cleanly on a standard 10–12% gel.";
-      else if (n <= 120) meaning = "On the larger side — an 8–10% gel and a longer (ideally wet) transfer help it move.";
-      else meaning = "Large protein — use a low-percentage gel (6–8%) and an extended wet transfer; expect slower, harder transfer.";
+      if (n < 15) meaning = "Small protein, use a higher-percentage gel (12–15%) and watch it doesn't run off the front.";
+      else if (n <= 60) meaning = "Mid-size, resolves cleanly on a standard 10–12% gel.";
+      else if (n <= 120) meaning = "On the larger side, an 8–10% gel and a longer (ideally wet) transfer help it move.";
+      else meaning = "Large protein, use a low-percentage gel (6–8%) and an extended wet transfer; expect slower, harder transfer.";
       insights.push({ label: "Molecular weight", value: `${Math.round(n)} kDa`, meaning });
     }
 
@@ -2168,9 +2171,9 @@
     if (pIVal !== undefined && pIVal !== null && pIVal !== "") {
       const n = Number(pIVal);
       let meaning;
-      if (n < 5.5) meaning = "Acidic — net-negative at neutral pH, so it usually transfers well in standard buffers.";
-      else if (n <= 8) meaning = "Near-neutral charge — standard transfer and blocking conditions are a good starting point.";
-      else meaning = "Basic — basic proteins can transfer poorly at standard pH; consider transfer-buffer pH or a longer transfer.";
+      if (n < 5.5) meaning = "Acidic, net-negative at neutral pH, so it usually transfers well in standard buffers.";
+      else if (n <= 8) meaning = "Near-neutral charge, standard transfer and blocking conditions are a good starting point.";
+      else meaning = "Basic, basic proteins can transfer poorly at standard pH; consider transfer-buffer pH or a longer transfer.";
       insights.push({ label: "Isoelectric point (pI)", value: n, meaning });
     }
 
@@ -2182,8 +2185,8 @@
         label: "Hydrophobicity",
         value: memRisk ? `${memRisk} retention` : `${hydDomains} domain(s)`,
         meaning: hydrophobic
-          ? "Hydrophobic / membrane-associated — prefer PVDF + gentle wet transfer, allow longer blocking, and don't over-boil (it can aggregate)."
-          : "Largely soluble — standard transfer and blocking should work well.",
+          ? "Hydrophobic / membrane-associated, prefer PVDF + gentle wet transfer, allow longer blocking, and don't over-boil (it can aggregate)."
+          : "Largely soluble, standard transfer and blocking should work well.",
       });
     }
 
@@ -2193,8 +2196,8 @@
         label: "Aggregation risk",
         value: agg,
         meaning: agg === "high" || agg === "moderate"
-          ? "Aggregation-prone — keep lysate cold, use fresh reducing buffer, and avoid overheating; high-MW smears are a risk."
-          : "Low aggregation risk — standard sample prep should be fine.",
+          ? "Aggregation-prone, keep lysate cold, use fresh reducing buffer, and avoid overheating; high-MW smears are a risk."
+          : "Low aggregation risk, standard sample prep should be fine.",
       });
     }
 
@@ -2204,8 +2207,8 @@
         label: "Structure confidence",
         value: `pLDDT ${af.mean_plddt}`,
         meaning: plddt >= 70
-          ? "High-confidence predicted structure — accessibility and domain cues are reliable."
-          : "Lower-confidence or possibly disordered — treat structural cues as rough guidance.",
+          ? "High-confidence predicted structure, accessibility and domain cues are reliable."
+          : "Lower-confidence or possibly disordered, treat structural cues as rough guidance.",
       });
     }
 
@@ -2214,7 +2217,7 @@
       insights.push({
         label: "Processing sites",
         value: `${cleavage}`,
-        meaning: "Has cleavage/processing sites — you may see processed bands below the full-length size, which can look like extra bands.",
+        meaning: "Has cleavage/processing sites, you may see processed bands below the full-length size, which can look like extra bands.",
       });
     }
 
@@ -2353,7 +2356,7 @@
       try {
         applyStyle(viewerObj.current, highlight);
       } catch (err) {
-        /* viewer not ready / disposed — ignore */
+        /* viewer not ready / disposed, ignore */
       }
     }, [highlight, status]);
 
@@ -2403,7 +2406,7 @@
   }
 
   // Data-driven 1D domain / topology map built from UniProt/EBI positional
-  // features — N-terminus on the left, C-terminus on the right.
+  // features, N-terminus on the left, C-terminus on the right.
   function DomainMap({ proteinIntelligence, selected, onSelect }) {
     const identity = proteinIntelligence.uniprot || {};
     const chemistry = proteinIntelligence.chemistry || {};
@@ -2491,20 +2494,20 @@
             { className: "domain-map-scroll" },
             h("svg", { viewBox: `0 0 ${W} ${H}`, className: "domain-map-svg", preserveAspectRatio: "xMidYMid meet" }, svgChildren)
           )
-        : h("p", { className: "domain-empty" }, "No positional domain or topology features were returned for this entry — the chain length is shown above for context."),
+        : h("p", { className: "domain-empty" }, "No positional domain or topology features were returned for this entry, the chain length is shown above for context."),
       selected
         ? h(
             "div",
             { className: "domain-readout" },
             h("span", { className: "domain-readout-dot", style: { background: featureColor(selected.type) } }),
             h("strong", null, `${featureLabel(selected.type)} · residues ${selected.begin}–${selected.end}`),
-            selected.description ? h("span", { className: "domain-readout-desc" }, ` — ${selected.description}`) : null
+            selected.description ? h("span", { className: "domain-readout-desc" }, `, ${selected.description}`) : null
           )
         : null
     );
   }
 
-  // "Where will my band run?" — predicted band on a standard MW ladder, with
+  // "Where will my band run?", predicted band on a standard MW ladder, with
   // zones for likely processed (lower) and aggregated/PTM (higher) species.
   function ExpectedBand({ proteinIntelligence }) {
     const chem = proteinIntelligence.chemistry || {};
@@ -2566,15 +2569,15 @@
         ? h(
             "ul",
             { className: "gel-notes" },
-            glyco > 0 ? h("li", { key: "g" }, `${glyco} N-glycosylation site(s) — the protein often runs HIGHER than the predicted ${Math.round(mw)} kDa (a fuzzier, shifted band).`) : null,
-            processed ? h("li", { key: "p" }, "Faint lower bands are plausible — this protein has signal/cleavage/processing sites (processed or degraded forms).") : null,
-            aggregation ? h("li", { key: "a" }, "Higher-MW bands or smears are plausible — aggregation/PTM risk is elevated; keep samples cold and fully denatured.") : null
+            glyco > 0 ? h("li", { key: "g" }, `${glyco} N-glycosylation site(s), the protein often runs HIGHER than the predicted ${Math.round(mw)} kDa (a fuzzier, shifted band).`) : null,
+            processed ? h("li", { key: "p" }, "Faint lower bands are plausible, this protein has signal/cleavage/processing sites (processed or degraded forms).") : null,
+            aggregation ? h("li", { key: "a" }, "Higher-MW bands or smears are plausible, aggregation/PTM risk is elevated; keep samples cold and fully denatured.") : null
           )
-        : h("p", { className: "gel-notes-clean" }, "No strong processing or aggregation cues — expect a clean single band near the predicted size.")
+        : h("p", { className: "gel-notes-clean" }, "No strong processing or aggregation cues, expect a clean single band near the predicted size.")
     );
   }
 
-  // Antibody epitope guidance — accessible (non-buried, non-cleaved) regions
+  // Antibody epitope guidance, accessible (non-buried, non-cleaved) regions
   // from real topology features, so users avoid raising antibodies to TM or
   // signal/propeptide stretches.
   function EpitopeGuidance({ proteinIntelligence }) {
@@ -2607,7 +2610,7 @@
       h("p", { className: "intel-why-kicker" }, "Antibody epitope guidance"),
       avoid.length
         ? h("p", { className: "domain-sub" }, "Raise or choose antibodies against accessible regions; avoid buried (transmembrane) or cleaved (signal/propeptide) stretches.")
-        : h("p", { className: "domain-sub" }, "No transmembrane or cleaved regions detected — most of the chain is accessible for antibody binding."),
+        : h("p", { className: "domain-sub" }, "No transmembrane or cleaved regions detected, most of the chain is accessible for antibody binding."),
       sized.length
         ? h(
             "div",
@@ -2653,7 +2656,7 @@
           );
         }
       } catch (err) {
-        /* clipboard unavailable — ignore */
+        /* clipboard unavailable, ignore */
       }
     }
 
