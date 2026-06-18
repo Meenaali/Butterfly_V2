@@ -92,14 +92,11 @@
 
     useEffect(() => {
       if (authenticated) {
-        fetchHistory();
         fetchIndexStatus();
       }
     }, [authenticated]);
 
-    const comparison = useMemo(() => buildComparison(history, experiment), [history, experiment]);
     const strategyReady = Boolean(proteinIntelligence || experiment.protein_name);
-    const finalIntegrityReady = Boolean(analyses.final);
 
     async function checkAuth() {
       const response = await fetch("/api/auth/status");
@@ -588,9 +585,7 @@
       ["strategy", "WB Predictive Strategy"],
       ["antibody", "Antibody Compatibility"],
       ["log", "Experiment Log"],
-      ["integrity", "Image Integrity"],
       ["assistant", "Virtual Assistant"],
-      ["history", "History"],
     ];
 
     let panel = null;
@@ -614,9 +609,7 @@
         proteinFirstPlan,
         proteinIntelligence,
         onGenerate: generateProteinFirstPlan,
-        onSave: saveExperiment,
         onReset: startNew,
-        selectedId,
         status,
         proteinFirstLoading,
       });
@@ -641,24 +634,12 @@
         aiInterpretations,
         aiLoadingStage,
       });
-    } else if (activeTab === "integrity") {
-      panel = h(FinalIntegritySection, {
-        number: "05",
-        finalAnalysis: analyses.final,
-        preview: previews.final,
-        integrity: recommendations.integrity,
-        onUpload: analyseStage,
-        onAIInterpret: generateAIInterpretation,
-        aiInterpretation: aiInterpretations.final,
-        aiLoadingStage,
-      });
     } else if (activeTab === "assistant") {
       panel = h(VirtualAssistantSection, {
-        number: "06",
+        number: "05",
         experiment,
         updateField,
         analyses,
-        comparison,
         troubleshootingPlan,
         onGenerate: generateTroubleshootingPlan,
         loading: troubleshootingLoading,
@@ -671,14 +652,12 @@
         scanResult: aiInterpretations.final,
         scanPreview: previews.final,
       });
-    } else if (activeTab === "history") {
-      panel = h(SidebarPanel, { history, selectedId, onLoad: loadExperiment });
     }
 
     return h(
       "div",
       { className: "app-shell" },
-      h(Hero, { experimentCount: history.length, finalIntegrityReady, onLogout: logout }),
+      h(Hero, { onLogout: logout }),
       h(
         "div",
         { className: "tabbar" },
@@ -736,7 +715,7 @@
     );
   }
 
-  function Hero({ experimentCount, finalIntegrityReady, onLogout }) {
+  function Hero({ onLogout }) {
     return h(
       "section",
       { className: "hero" },
@@ -748,20 +727,14 @@
         h(
           "p",
           { className: "subtitle" },
-          "A virtual Western blot troubleshooting assistant that turns protein intelligence, antibody evidence, experiment logs, image analysis, and publication integrity checks into an evidence-weighted strategy for the next blot."
+          "A virtual Western blot troubleshooting assistant that turns protein intelligence, antibody evidence, and image analysis into an evidence-weighted strategy for the next blot."
         ),
         h("div", { className: "button-row" }, h("button", { className: "button button-ghost", type: "button", onClick: onLogout }, "Log out"))
       ),
       h(
         "div",
         { className: "hero-visual" },
-        h("div", { className: "brand-mark-shell" }, h("img", { src: "/assets/Butterfly-logo-v7.jpg?v=7", alt: "Rorschach western blot butterfly mark", className: "brand-mark" })),
-        h(
-          "div",
-          { className: "hero-grid" },
-          statCard("Saved runs", String(experimentCount), "Past experiments become internal evidence for the next prediction."),
-          statCard("Final integrity", finalIntegrityReady ? "Ready" : "Pending", "The final blot is the publication-readiness checkpoint.")
-        )
+        h("div", { className: "brand-mark-shell" }, h("img", { src: "/assets/Butterfly-logo-v7.jpg?v=7", alt: "Rorschach western blot butterfly mark", className: "brand-mark" }))
       )
     );
   }
@@ -845,7 +818,7 @@
     );
   }
 
-  function PredictedStrategySection({ number, experiment, strategyReady, recommendations, proteinFirstPlan, proteinIntelligence, onGenerate, onSave, onReset, selectedId, status, proteinFirstLoading }) {
+  function PredictedStrategySection({ number, experiment, strategyReady, recommendations, proteinFirstPlan, proteinIntelligence, onGenerate, onReset, status, proteinFirstLoading }) {
     return h(
       SectionCard,
       { number, title: "Predictive Strategy", subtitle: "This stage turns the protein characteristics into a first-pass Western blot strategy that the user can review before running anything." },
@@ -856,7 +829,6 @@
           "div",
           { className: "button-row strategy-button-row" },
           h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: !strategyReady || proteinFirstLoading }, proteinFirstLoading ? "Building strategy..." : "Generate strategy"),
-          h("button", { className: "button button-secondary", type: "button", onClick: onSave, disabled: !Object.keys(recommendations).length }, selectedId ? "Update run" : "Save run"),
           h("button", { className: "button button-ghost", type: "button", onClick: onReset }, "New run")
         ),
         h("div", { className: "status strategy-status" }, status),
