@@ -818,30 +818,247 @@
     );
   }
 
+  // Turn Step 1 protein intelligence into concrete, adjustable protocol
+  // decisions. Each decision is derived from the protein's own chemistry, with
+  // the reasoning shown and alternatives the scientist can switch to.
+  function buildProtocolDecisions(proteinIntelligence, ctx) {
+    const chem = (proteinIntelligence && proteinIntelligence.chemistry) || {};
+    const counts = (proteinIntelligence && proteinIntelligence.ebi_features && proteinIntelligence.ebi_features.counts) || {};
+    const mw = Number(chem.molecular_weight_kda || 0);
+    const pI = chem.theoretical_pI;
+    const hydrophobic = chem.membrane_retention_risk === "high" || Number(chem.hydrophobic_domain_count || 0) > 0 || Number(chem.hydrophobic_fraction || 0) >= 0.38;
+    const aggregation = chem.aggregation_risk === "high" || chem.aggregation_risk === "moderate";
+    const glyco = Number(chem.glycosylation_sites || counts.CARBOHYD || 0) > 0;
+    const processed = Number(chem.cleavage_site_count || 0) > 0 || Number(counts.SIGNAL || 0) > 0;
+    const abundance = ctx.abundance; // low | moderate | high
+    const phospho = ctx.phospho;
+
+    const gel = mw >= 150 ? "6%" : mw >= 100 ? "7.5%" : mw >= 60 ? "8%" : mw >= 35 ? "10%" : mw >= 20 ? "12%" : "15%";
+    const pore = mw && mw < 40 ? "0.2 µm" : "0.45 µm";
+    const membrane = hydrophobic ? "PVDF" : "Nitrocellulose";
+    const loadVal = abundance === "low" ? "30–50 µg" : abundance === "high" ? "5–15 µg" : "15–25 µg";
+    const prepVal = aggregation || hydrophobic ? "Reducing Laemmli; heat 70 °C / 10 min (do NOT boil)" : "Reducing Laemmli; heat 95 °C / 5 min";
+    const transferVal = mw >= 100 ? "Wet transfer, 90 min (or overnight 4 °C), 10% methanol" : mw <= 25 ? "Semi-dry or wet, 30–45 min" : "Wet transfer, 60–90 min";
+    const blockingVal = phospho || glyco ? "3–5% BSA in TBST, 1 h RT" : "5% non-fat milk in TBST, 1 h RT";
+    const primaryVal = abundance === "low" ? "Start 1:500–1:1000, overnight 4 °C" : abundance === "high" ? "Start 1:2000–1:5000, 1 h RT" : "Start 1:1000, overnight 4 °C";
+    const washVal = phospho ? "4 × 5 min TBST" : abundance === "low" ? "3 × 5 min TBST (don't over-wash)" : "3 × 5–10 min TBST";
+    const detectionVal = abundance === "low" ? "High-sensitivity ECL; capture an exposure series" : "Standard ECL; short→long exposure series";
+
+    return [
+      {
+        id: "prep",
+        title: "Sample preparation",
+        value: prepVal,
+        why: aggregation || hydrophobic
+          ? `Aggregation/membrane risk is elevated — boiling can aggregate this protein, so denature gently.`
+          : `Standard globular protein — full denaturation at 95 °C is fine.`,
+        options: ["Reducing Laemmli; heat 95 °C / 5 min", "Reducing Laemmli; heat 70 °C / 10 min (do NOT boil)", "Reducing Laemmli; 37 °C / 30 min (membrane protein)", "Non-reducing (native epitope)"],
+      },
+      {
+        id: "gel",
+        title: "Gel percentage",
+        value: `${gel} SDS-PAGE`,
+        why: `Predicted MW ≈ ${mw || "?"} kDa — ${gel} resolves this size range best.`,
+        options: ["6% SDS-PAGE", "7.5% SDS-PAGE", "8% SDS-PAGE", "10% SDS-PAGE", "12% SDS-PAGE", "15% SDS-PAGE", "4–20% gradient"],
+      },
+      {
+        id: "load",
+        title: "Sample load per lane",
+        value: loadVal,
+        why: `Target abundance is ${abundance}${mw >= 100 ? "; larger proteins benefit from a little more load" : ""}.`,
+        options: ["5–15 µg", "15–25 µg", "30–50 µg"],
+      },
+      {
+        id: "membrane",
+        title: "Membrane",
+        value: `${membrane}, ${pore}`,
+        why: `${hydrophobic ? "Hydrophobic / membrane-associated → PVDF binds it better. " : "Largely soluble → either membrane works. "}${mw && mw < 40 ? "Small target → 0.2 µm avoids blow-through." : "0.45 µm is fine for this size."}`,
+        options: ["PVDF, 0.45 µm", "PVDF, 0.2 µm", "Nitrocellulose, 0.45 µm", "Nitrocellulose, 0.2 µm"],
+      },
+      {
+        id: "transfer",
+        title: "Transfer",
+        value: transferVal,
+        why: mw >= 100
+          ? `Large protein (${mw} kDa) transfers slowly — longer/wet transfer with less methanol helps it move.`
+          : mw <= 25
+          ? `Small protein (${mw} kDa) transfers fast — watch for blow-through.`
+          : `Mid-size protein — standard wet transfer.`,
+        options: ["Wet transfer, 60–90 min", "Wet transfer, 90 min, 10% methanol", "Wet transfer, overnight 4 °C", "Semi-dry, 30–45 min"],
+      },
+      {
+        id: "blocking",
+        title: "Blocking",
+        value: blockingVal,
+        why: phospho
+          ? "Phospho-specific antibody — milk phospho-proteins raise background, so use BSA."
+          : glyco
+          ? "Glycoprotein — BSA avoids milk lectin-like interactions."
+          : "Standard target — milk is an economical first choice.",
+        options: ["5% non-fat milk in TBST", "3–5% BSA in TBST", "5% milk + 0.1% Tween", "Commercial blocking buffer"],
+      },
+      {
+        id: "primary",
+        title: "Primary antibody",
+        value: primaryVal,
+        why: `Abundance is ${abundance} — ${abundance === "low" ? "start more concentrated and incubate cold/overnight" : abundance === "high" ? "start dilute to avoid saturation" : "a 1:1000 overnight is a safe first pass"}.`,
+        options: ["Start 1:500–1:1000, overnight 4 °C", "Start 1:1000, overnight 4 °C", "Start 1:2000–1:5000, 1 h RT", "Manufacturer's recommended dilution"],
+      },
+      {
+        id: "wash",
+        title: "Washing",
+        value: washVal,
+        why: phospho ? "Phospho workflows benefit from thorough washing." : abundance === "low" ? "Low-abundance signal is easily over-washed — keep it gentle." : "Standard washing.",
+        options: ["3 × 5 min TBST", "3 × 5–10 min TBST", "4 × 5 min TBST"],
+      },
+      {
+        id: "detection",
+        title: "Detection",
+        value: detectionVal,
+        why: abundance === "low" ? "Low-abundance target needs a sensitive substrate." : "Standard ECL with an exposure series prevents saturation.",
+        options: ["Standard ECL", "High-sensitivity ECL", "Fluorescent secondary"],
+      },
+      {
+        id: "controls",
+        title: "Controls & expected band",
+        value: `Expected ≈ ${mw || "?"} kDa; run a positive-control lysate${processed ? "; expect possible lower processed bands" : ""}${glyco ? "; glyco band may run higher" : ""}.`,
+        why: "Anchors interpretation and distinguishes real bands from artefacts.",
+        options: [],
+      },
+    ];
+  }
+
+  function ProtocolPlanner({ proteinIntelligence, experiment }) {
+    const ready = proteinIntelligence && proteinIntelligence.chemistry && proteinIntelligence.chemistry.molecular_weight_kda;
+    const initialAbundance = (() => {
+      const a = (experiment && experiment.target_abundance_class) || "moderate";
+      if (a === "very low" || a === "low") return "low";
+      if (a === "very high" || a === "high") return "high";
+      return "moderate";
+    })();
+    const [abundance, setAbundance] = useState(initialAbundance);
+    const [phospho, setPhospho] = useState((experiment && experiment.primary_type) === "phospho");
+    const [overrides, setOverrides] = useState({});
+    const [copied, setCopied] = useState(false);
+
+    if (!ready) {
+      return h("div", { className: "empty-state" }, "Run Protein Intelligence in Stage 1 first — Butterfly builds the protocol from your protein's size, charge, hydrophobicity, processing and glycosylation.");
+    }
+
+    const decisions = buildProtocolDecisions(proteinIntelligence, { abundance, phospho });
+    const valueFor = (d) => overrides[d.id] || d.value;
+
+    function copyProtocol() {
+      const lines = ["Butterfly recommended Western blot protocol", ""];
+      decisions.forEach((d) => lines.push(`${d.title}: ${valueFor(d)}`));
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(lines.join("\n")).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }, () => {});
+        }
+      } catch (err) {
+        /* ignore */
+      }
+    }
+
+    const chipRow = (label, value, current, setter, opts) =>
+      h(
+        "div",
+        { className: "proto-ctx-group" },
+        h("span", { className: "proto-ctx-label" }, label),
+        h(
+          "div",
+          { className: "proto-ctx-chips" },
+          opts.map((o) =>
+            h(
+              "button",
+              { key: String(o.val), type: "button", className: current === o.val ? "proto-chip proto-chip-on" : "proto-chip", onClick: () => setter(o.val) },
+              o.label
+            )
+          )
+        )
+      );
+
+    return h(
+      "div",
+      { className: "dtree proto-planner" },
+      h("p", { className: "dtree-kicker" }, "Protocol planner"),
+      h("h3", { className: "dtree-title" }, "Your protocol, built from this protein"),
+      h("p", { className: "dtree-sub" }, "Every setting below is derived from your Stage 1 protein data. Tell Butterfly two things it can't know, then adjust any decision — the reasoning updates with your protein."),
+      h(
+        "div",
+        { className: "proto-context" },
+        chipRow("Target abundance", abundance, abundance, setAbundance, [
+          { val: "low", label: "Low / rare" },
+          { val: "moderate", label: "Moderate" },
+          { val: "high", label: "High" },
+        ]),
+        chipRow("Antibody type", phospho, phospho, setPhospho, [
+          { val: false, label: "Total protein" },
+          { val: true, label: "Phospho-specific" },
+        ])
+      ),
+      h(
+        "div",
+        { className: "proto-grid" },
+        decisions.map((d) =>
+          h(
+            "div",
+            { className: "proto-card", key: d.id },
+            h("p", { className: "proto-card-title" }, d.title),
+            h("p", { className: "proto-card-value" }, valueFor(d)),
+            h("p", { className: "proto-card-why" }, d.why),
+            d.options && d.options.length
+              ? h(
+                  "div",
+                  { className: "proto-options" },
+                  d.options.map((opt) =>
+                    h(
+                      "button",
+                      {
+                        key: opt,
+                        type: "button",
+                        className: valueFor(d) === opt ? "proto-opt proto-opt-on" : "proto-opt",
+                        onClick: () => setOverrides((prev) => ({ ...prev, [d.id]: opt })),
+                      },
+                      opt
+                    )
+                  )
+                )
+              : null
+          )
+        )
+      ),
+      h(
+        "div",
+        { className: "proto-actions" },
+        h("button", { type: "button", className: "dtree-detail-btn", onClick: copyProtocol }, copied ? "Protocol copied ✓" : "Copy full protocol")
+      )
+    );
+  }
+
   function PredictedStrategySection({ number, experiment, strategyReady, recommendations, proteinFirstPlan, proteinIntelligence, onGenerate, onReset, status, proteinFirstLoading }) {
     return h(
       SectionCard,
-      { number, title: "Predictive Strategy", subtitle: "This stage turns the protein characteristics into a first-pass Western blot strategy that the user can review before running anything." },
+      { number, title: "Predictive Strategy", subtitle: "Butterfly turns your Stage 1 protein data into concrete, adjustable Western blot protocol decisions — so you can set up (or amend) the run with the reasoning in front of you." },
+      h(ProtocolPlanner, { proteinIntelligence, experiment }),
+      h("div", { className: "dtree-divider" }, h("span", null, "Optional · deeper model")),
       h(
         "div",
         { className: "strategy-action-stack" },
         h(
           "div",
           { className: "button-row strategy-button-row" },
-          h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: !strategyReady || proteinFirstLoading }, proteinFirstLoading ? "Building strategy..." : "Generate strategy"),
+          h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: !strategyReady || proteinFirstLoading }, proteinFirstLoading ? "Building model..." : "Generate detailed model"),
           h("button", { className: "button button-ghost", type: "button", onClick: onReset }, "New run")
         ),
-        h("div", { className: "status strategy-status" }, status),
-        h(
-          "div",
-          { className: "lookup-card strategy-intro-card" },
-          h("p", { className: "tiny-label" }, "What this section is doing"),
-          h("p", { className: "status" }, "Using UniProt, AlphaFold, EMBL-EBI feature data, and FASTA-derived chemistry from Section 1, Butterfly maps the protein evidence into one predictive Western blot strategy. The goal is to show, concisely, how size, pI, hydrophobicity, domain context, processing risk, and folding behaviour affect buffers, transfer, blocker choice, and the expected band region.")
-        )
+        h("div", { className: "status strategy-status" }, status)
       ),
       proteinFirstPlan
         ? h(ProteinFirstPlanCard, { plan: proteinFirstPlan, proteinIntelligence, recommendations, experiment })
-        : h("div", { className: "empty-state" }, "Review the protein evidence in Stage 01 first, then ask Butterfly to generate the predictive model.")
+        : null
     );
   }
 
