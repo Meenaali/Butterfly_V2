@@ -1217,11 +1217,53 @@
     },
   ];
 
+  function PreRunChecklist() {
+    const items = [
+      "Protein quantified (BCA or Bradford) and equal amounts loaded per lane",
+      "Sample denatured at the recommended condition",
+      "Reducing agent included (or non-reducing chosen for a native epitope)",
+      "Molecular-weight ladder loaded",
+      "Gel percentage matches the target size",
+      "PVDF activated in methanol (if using PVDF)",
+      "Transfer check planned (Ponceau or stain-free)",
+      "Blocker matches the antibody (BSA for phospho targets)",
+      "Primary and secondary host species are compatible",
+      "Detection chemistry matches the secondary conjugate (HRP with ECL)",
+      "Positive control and loading control included",
+    ];
+    const [checked, setChecked] = useState({});
+    const done = items.every((_, i) => checked[i]);
+    return h(
+      "div",
+      { className: "runplan-block" },
+      h("h3", { className: "runplan-h3" }, "Pre-run checklist"),
+      h("p", { className: "runplan-lead" }, "Confirm each item before you run. Changing one variable at a time only teaches you something if the rest are held steady."),
+      h(
+        "ul",
+        { className: "checklist" },
+        items.map((it, i) =>
+          h(
+            "li",
+            { key: i, className: checked[i] ? "check-item check-on" : "check-item" },
+            h(
+              "label",
+              null,
+              h("input", { type: "checkbox", checked: !!checked[i], onChange: () => setChecked((prev) => ({ ...prev, [i]: !prev[i] })) }),
+              h("span", null, it)
+            )
+          )
+        )
+      ),
+      done ? h("p", { className: "check-done" }, "All set. You are ready to run.") : null
+    );
+  }
+
   function RunPlanSection({ number, proteinIntelligence, abundance, phospho, overrides }) {
     const ready = proteinIntelligence && proteinIntelligence.chemistry && proteinIntelligence.chemistry.molecular_weight_kda;
     const identity = (proteinIntelligence && proteinIntelligence.uniprot) || {};
     const chem = (proteinIntelligence && proteinIntelligence.chemistry) || {};
     const targetName = identity.protein_name || (proteinIntelligence && proteinIntelligence.resolved_accession) || "your target";
+    const mwLabel = chem.molecular_weight_kda ? `${Math.round(chem.molecular_weight_kda)} kDa` : "your target's";
     const decisions = ready ? buildProtocolDecisions(proteinIntelligence, { abundance, phospho }) : [];
     const valueFor = (d) => (overrides && overrides[d.id]) || d.value;
 
@@ -1249,21 +1291,91 @@
           ),
           ready
             ? h(
-                "div",
-                { className: "runplan-block" },
-                h("h3", { className: "runplan-h3" }, "Recommended protocol"),
+                React.Fragment,
+                null,
                 h(
-                  "table",
-                  { className: "runplan-table" },
+                  "div",
+                  { className: "runplan-block" },
+                  h("h3", { className: "runplan-h3" }, "Recommended protocol"),
                   h(
-                    "tbody",
-                    null,
-                    decisions.map((d) => h("tr", { key: d.id }, h("th", null, d.title), h("td", null, valueFor(d))))
+                    "table",
+                    { className: "runplan-table" },
+                    h(
+                      "tbody",
+                      null,
+                      decisions.map((d) => h("tr", { key: d.id }, h("th", null, d.title), h("td", null, valueFor(d))))
+                    )
+                  ),
+                  h("p", { className: "runplan-note" }, "Settings reflect your Stage 2 selections and protein chemistry. Adjust on the bench as your results dictate. See Reference & Glossary (Stage 6) for the reasoning behind each choice.")
+                ),
+                h(
+                  "div",
+                  { className: "runplan-block" },
+                  h("h3", { className: "runplan-h3" }, "Controls to include"),
+                  h(
+                    "dl",
+                    { className: "runplan-glossary" },
+                    h("dt", null, "Positive control"),
+                    h("dd", null, `A lysate or tissue known to express ${targetName}, which confirms the antibody and detection are working.`),
+                    h("dt", null, "Negative control"),
+                    h("dd", null, "A sample lacking the target (knockout, knockdown, or a non-expressing cell type), plus a no-primary (secondary-only) control for specificity."),
+                    h("dt", null, "Loading control"),
+                    h("dd", null, `A total-protein stain (Ponceau, stain-free, REVERT) is preferred, or a housekeeping protein at a molecular weight away from the ${mwLabel} target.`)
                   )
                 ),
-                h("p", { className: "runplan-note" }, "Settings reflect your Stage 2 selections and protein chemistry. Adjust on the bench as your results dictate. See Reference & Glossary (Stage 6) for the why behind each choice.")
+                h(PreRunChecklist)
               )
-            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1), then set your options in WB Predictive Strategy (Stage 2). Your personalised protocol will compile here."),
+            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1), then set your options in WB Predictive Strategy (Stage 2). Your personalised protocol will compile here.")
+        )
+      )
+    );
+  }
+
+  const BLOT_PATTERNS = [
+    ["clean", "Clean single band", "Ideal: one sharp band at the expected size."],
+    ["faint", "Faint band", "Underloaded sample or low antibody sensitivity. Load more, or increase the primary."],
+    ["smear", "Diffuse / smeared lane", "Overloading or a degraded sample. Reduce load, keep cold, and use fresh reducing buffer."],
+    ["grey", "Whole membrane grey", "A blocking, washing, or detection problem, not your target. Improve blocking and washes, and dilute the secondary."],
+    ["smiling", "Smiling bands", "Uneven heating during the run. Lower the voltage and keep the gel cool."],
+    ["multiple", "Multiple bands", "Non-specific binding or genuine isoforms. Dilute the primary, add controls, and check the expected sizes."],
+    ["saturated", "Saturated / hollow band", "Over-exposed: the centre blows out. Shorten exposure and reduce antibody to recover quantification."],
+  ];
+
+  function blotPatternSvg(key) {
+    const band = (y, hh, fill, op) => h("rect", { key: `b${y}`, x: 27, y, width: 26, height: hh, rx: 2, fill: fill || "#262626", opacity: op == null ? 0.9 : op });
+    const lane = h("rect", { key: "lane", x: 24, y: 8, width: 32, height: 94, rx: 3, fill: "#f2f2f2", stroke: "rgba(0,0,0,0.15)" });
+    let extra = [];
+    if (key === "clean") extra = [band(50, 7)];
+    else if (key === "faint") extra = [band(50, 6, "#262626", 0.28)];
+    else if (key === "smear") { for (let i = 0; i < 9; i += 1) extra.push(band(28 + i * 6, 5, "#262626", 0.16)); }
+    else if (key === "grey") extra = [h("rect", { key: "g", x: 24, y: 8, width: 32, height: 94, rx: 3, fill: "#7a7a7a", opacity: 0.5 }), band(52, 6, "#1f1f1f", 0.5)];
+    else if (key === "smiling") extra = [h("path", { key: "p", d: "M27,60 Q40,46 53,60", stroke: "#262626", strokeWidth: 6, fill: "none", strokeLinecap: "round" })];
+    else if (key === "multiple") extra = [band(34, 6), band(52, 6), band(70, 6)];
+    else if (key === "saturated") extra = [band(44, 18, "#0e0e0e", 0.95), h("rect", { key: "hollow", x: 31, y: 50, width: 18, height: 6, rx: 2, fill: "#6a6a6a", opacity: 0.85 })];
+    return h("svg", { viewBox: "0 0 80 110", className: "blot-svg", "aria-hidden": "true" }, lane, extra);
+  }
+
+  function PatternGallery() {
+    return h(
+      "div",
+      { className: "runplan-block" },
+      h("h3", { className: "runplan-h3" }, "Reading your blot: common patterns"),
+      h("p", { className: "runplan-lead" }, "Match what you see to the closest schematic, then open that symptom in the Virtual Assistant. These illustrations are schematic, not real blots."),
+      h(
+        "div",
+        { className: "pattern-grid" },
+        BLOT_PATTERNS.map(([key, title, meaning]) =>
+          h(
+            "div",
+            { className: "pattern-card", key },
+            blotPatternSvg(key),
+            h(
+              "div",
+              { className: "pattern-copy" },
+              h("p", { className: "pattern-title" }, title),
+              h("p", { className: "pattern-meaning" }, meaning)
+            )
+          )
         )
       )
     );
@@ -1303,7 +1415,7 @@
           { className: "runplan-actions no-print" },
           h("button", { className: "button button-primary", type: "button", onClick: () => window.print() }, "Print / Save as PDF")
         ),
-        h("div", { className: "print-area" }, guideEls)
+        h("div", { className: "print-area" }, guideEls[0], h(PatternGallery), guideEls.slice(1))
       )
     );
   }
@@ -1633,7 +1745,30 @@
         { label: "High background or haze", next: "D1" },
         { label: "Multiple or non-specific bands", next: "E1" },
         { label: "Uneven bands, smearing, or poor transfer", next: "F1" },
+        { label: "Smiling or distorted band shape", next: "SM" },
+        { label: "Ghost or hollow bands", next: "GH" },
         { label: "Signal saturated or overexposed", next: "G" },
+      ],
+    },
+
+    SM: {
+      type: "outcome",
+      backend: "smearing",
+      title: "Fix band distortion (smiling)",
+      fixes: [
+        { title: "Lower the run voltage and keep the gel cool (cold buffer or on ice)", why: "Smiling comes from uneven heating: the gel runs faster at the warm centre than the cooler edges.", impact: 0.82, effort: "Trivial" },
+        { title: "Use fresh, evenly mixed running buffer at the correct concentration", why: "Depleted or uneven buffer changes local conductivity and distorts the front.", impact: 0.6, effort: "Trivial" },
+        { title: "Avoid overloading edge lanes and let gels polymerise evenly", why: "Uneven loading and poor polymerisation bend the running front.", impact: 0.5, effort: "Easy" },
+      ],
+    },
+    GH: {
+      type: "outcome",
+      backend: "ghost bands",
+      title: "Fix ghost / hollow bands",
+      fixes: [
+        { title: "Reduce primary antibody or shorten exposure", why: "Very strong signal depletes the ECL substrate at the band centre, leaving a hollow or 'ghost' core.", impact: 0.78, effort: "Trivial" },
+        { title: "Use fresh ECL and capture an exposure series", why: "Exhausted substrate and a single long exposure exaggerate hollowing.", impact: 0.6, effort: "Trivial" },
+        { title: "If bands appear after stripping/reprobing, strip fully or use a fresh membrane", why: "Residual signal from a previous probe shows as faint ghost bands.", impact: 0.55, effort: "Moderate" },
       ],
     },
 
@@ -1851,6 +1986,39 @@
     return "Worth trying";
   }
 
+  // Closed-loop guidance: what to expect if the top fix works, and where to go
+  // next if it does not. Keyed by the outcome's backend symptom.
+  const CLOSED_LOOP = {
+    "no signal": {
+      expect: "A band should appear at the predicted size within your exposure series.",
+      ifFails: "Still blank? Confirm transfer with Ponceau and run a positive-control lysate before changing the antibody again.",
+    },
+    "weak signal": {
+      expect: "The target band should strengthen and become easy to read at a normal exposure.",
+      ifFails: "Still faint? Increase load or primary one more step, and switch to a high-sensitivity substrate.",
+    },
+    "high background": {
+      expect: "Background should drop, leaving cleaner bands against a paler membrane.",
+      ifFails: "Still hazy? Run a secondary-only control and switch blocker (milk to BSA or vice versa).",
+    },
+    "non-specific bands": {
+      expect: "Extra bands should fade, leaving mainly the target band.",
+      ifFails: "Still there? Run no-primary plus positive/negative controls and check the clone's Western blot validation.",
+    },
+    smearing: {
+      expect: "Bands should sharpen and run straight across the lane.",
+      ifFails: "Still smeared? Lower the load and voltage, and clean up the sample (salt, nucleic acid, debris).",
+    },
+    "ghost bands": {
+      expect: "Bands should fill in evenly, without hollow centres or faint duplicates.",
+      ifFails: "Still hollow? Dilute the primary further and use a fresh membrane rather than reprobing.",
+    },
+  };
+
+  function closedLoopFor(backend) {
+    return CLOSED_LOOP[backend] || CLOSED_LOOP["high background"];
+  }
+
   function augmentFixes(nodeKey, fixes, proteinIntelligence) {
     const chemistry = (proteinIntelligence && proteinIntelligence.chemistry) || {};
     const membraneRisk = chemistry.membrane_retention_risk;
@@ -1975,6 +2143,22 @@
                 )
               )
             )
+          )
+        ),
+        h(
+          "div",
+          { className: "dtree-closedloop" },
+          h(
+            "div",
+            { className: "dtree-cl-item" },
+            h("span", { className: "dtree-cl-tag dtree-cl-expect" }, "If it works"),
+            h("p", { className: "dtree-cl-text" }, closedLoopFor(node.backend).expect)
+          ),
+          h(
+            "div",
+            { className: "dtree-cl-item" },
+            h("span", { className: "dtree-cl-tag dtree-cl-fail" }, "If it fails"),
+            h("p", { className: "dtree-cl-text" }, closedLoopFor(node.backend).ifFails)
           )
         ),
         h(
