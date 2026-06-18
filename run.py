@@ -39,17 +39,7 @@ def valid_session(cookie_value: str | None) -> bool:
 
 @app.middleware("http")
 async def password_gate(request: Request, call_next):
-    open_paths = {
-        "/",
-        "/api/health",
-        "/api/auth/status",
-        "/api/auth/login",
-        "/api/auth/logout",
-    }
-    if request.url.path.startswith("/assets") or request.url.path in open_paths:
-        return await call_next(request)
-    if request.url.path.startswith("/api") and not valid_session(request.cookies.get(AUTH_COOKIE_NAME)):
-        return JSONResponse({"detail": "Login required"}, status_code=401)
+    # Login removed: the app is open, so every route passes through.
     return await call_next(request)
 
 

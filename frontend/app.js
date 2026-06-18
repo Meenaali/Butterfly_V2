@@ -151,14 +151,6 @@
     }
 
 
-    if (!authChecked) {
-      return h("div", { className: "app-shell" }, h("section", { className: "hero auth-hero" }, h("p", { className: "subtitle" }, "Checking Butterfly access...")));
-    }
-
-    if (!authenticated) {
-      return h(LoginScreen, { onLogin: login });
-    }
-
     async function analyseStage(stage, file) {
       if (!file) return;
 
@@ -659,7 +651,7 @@
     return h(
       "div",
       { className: "app-shell" },
-      h(Hero, { onLogout: logout }),
+      h(Hero, {}),
       h(
         "div",
         { className: "tabbar" },
@@ -717,7 +709,7 @@
     );
   }
 
-  function Hero({ onLogout }) {
+  function Hero() {
     return h(
       "section",
       { className: "hero" },
@@ -730,8 +722,7 @@
           "p",
           { className: "subtitle" },
           "A virtual Western blot troubleshooting assistant that turns protein intelligence, antibody evidence, and image analysis into an evidence-weighted strategy for the next blot."
-        ),
-        h("div", { className: "button-row" }, h("button", { className: "button button-ghost", type: "button", onClick: onLogout }, "Log out"))
+        )
       ),
       h(
         "div",

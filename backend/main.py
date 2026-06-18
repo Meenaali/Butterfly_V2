@@ -163,8 +163,8 @@ def _valid_session(cookie_value: str | None, kind: str) -> bool:
 
 
 def require_auth(butterfly_session: str | None = Cookie(default=None, alias=AUTH_COOKIE_NAME)) -> None:
-    if not _valid_session(butterfly_session, "butterfly"):
-        raise HTTPException(status_code=401, detail="Login required")
+    # Login removed: the app is open, so this dependency is a no-op.
+    return None
 
 
 def recommendation_to_dict(result: RecommendationResult) -> dict[str, Any]:
