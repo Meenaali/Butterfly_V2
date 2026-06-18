@@ -1148,59 +1148,77 @@
     {
       title: "How a Western blot works (end to end)",
       steps: [
-        "Sample prep & lysis — extract protein, add reducing Laemmli buffer, denature.",
-        "SDS-PAGE — separate proteins by molecular weight.",
-        "Transfer — move proteins from gel onto a PVDF or nitrocellulose membrane.",
-        "Blocking — coat the membrane to prevent non-specific antibody binding.",
-        "Primary antibody — binds your target.",
-        "Wash — remove unbound primary.",
-        "Secondary antibody — anti-host, carries the reporter (e.g. HRP).",
-        "Wash — remove unbound secondary.",
-        "Detection — ECL or fluorescence; capture on a CCD/CMOS imager.",
-        "Analysis — read band size against the ladder and normalise to a loading control.",
+        "Sample prep and lysis: extract protein, add reducing Laemmli buffer, then denature.",
+        "SDS-PAGE: separate proteins by molecular weight.",
+        "Transfer: move proteins from the gel onto a PVDF or nitrocellulose membrane.",
+        "Blocking: coat the membrane to prevent non-specific antibody binding.",
+        "Primary antibody: binds your target.",
+        "Wash: remove unbound primary.",
+        "Secondary antibody: anti-host, carrying the reporter (for example HRP).",
+        "Wash: remove unbound secondary.",
+        "Detection: ECL or fluorescence, captured on a CCD or CMOS imager.",
+        "Analysis: read band size against the ladder, then normalise to a loading control.",
       ],
     },
     {
-      title: "Loading controls & normalisation",
+      title: "Loading controls and normalisation",
       bullets: [
-        "Use a loading control to show lanes carry comparable protein: a housekeeping protein (GAPDH, β-actin, tubulin, vinculin) or — increasingly preferred — a total-protein stain (Ponceau, stain-free, REVERT).",
-        "Total-protein normalisation is more robust than a single housekeeping gene, which can change with treatment, tissue or disease.",
+        "Use a loading control to show lanes carry comparable protein: a housekeeping protein (GAPDH, beta-actin, tubulin, vinculin), or a total-protein stain (Ponceau, stain-free, REVERT), which is increasingly preferred.",
+        "Total-protein normalisation is more robust than a single housekeeping gene, which can change with treatment, tissue, or disease state.",
         "Pick a control at a different molecular weight from your target so both resolve cleanly.",
-        "Housekeeping proteins are very abundant and saturate easily — keep them in the linear range or use total protein instead.",
+        "Housekeeping proteins are very abundant and saturate easily, so keep them in the linear range or use total protein instead.",
       ],
     },
     {
-      title: "Signal-to-noise & CCD/CMOS imaging",
+      title: "Signal-to-noise (S/N)",
+      lead: "Signal-to-noise is the ratio of true band intensity to background. A clean, interpretable blot comes from raising signal and lowering noise, not from longer exposure (which raises both together).",
       bullets: [
-        "Signal-to-noise (S/N) is your band relative to background — maximise it with good blocking, thorough washing, and the right exposure, not by over-staining.",
-        "Capture within the imager's linear dynamic range. Saturated pixels cap the true signal and make quantification invalid.",
-        "Take an exposure series and use the frame where the strongest band of interest is still below saturation.",
-        "Cooled CCD/CMOS sensors lower read-noise for faint blots; pixel binning boosts sensitivity at the cost of resolution.",
-        "Keep the raw 16-bit TIFF. Never apply non-linear brightness/contrast or local edits to a blot you intend to quantify or publish.",
+        "Signal sources: enough target loaded, a well-validated antibody at the right dilution, efficient transfer, and fresh, sensitive substrate.",
+        "Noise sources: non-specific antibody binding, insufficient blocking, inadequate washing, dirty membranes or trays, and precipitated antibody.",
+        "To raise S/N, titrate the primary and secondary to the lowest dilution that still gives clear signal, block appropriately (BSA for phospho targets), and wash thoroughly (the volume and number of washes matter more than the time).",
+        "Over-exposing or over-loading does not improve S/N; it pushes both signal and background up and can hide real differences.",
+        "Always run a no-primary (secondary-only) control to reveal background that has nothing to do with your target.",
+      ],
+    },
+    {
+      title: "Imaging (more than just capture)",
+      lead: "Imaging is acquisition, sensor choice, and how you handle the file afterwards. Decisions here can create or destroy quantifiable data, even on a perfect blot.",
+      bullets: [
+        "Match the imager to the chemistry: chemiluminescence (HRP, ECL) needs a sensitive low-light camera, while fluorescence needs the correct excitation and emission channels.",
+        "Dynamic range: capture so the strongest band of interest sits below saturation. Saturated (clipped) pixels lose information and cannot be quantified.",
+        "Always take an exposure series and keep the longest unsaturated frame, rather than a single fixed exposure.",
+        "Sensor type: cooled CCD and scientific CMOS (sCMOS) sensors reduce thermal and read noise for faint signals, and cooling matters for long chemiluminescence exposures.",
+        "Binning combines neighbouring pixels to boost sensitivity and shorten exposure, at the cost of spatial resolution (useful for weak blots, less so for fine band detail).",
+        "Even illumination and flat-field correction matter for fluorescence, because uneven lighting mimics real intensity differences.",
+        "Save the raw, lossless 16-bit TIFF. JPEG compression and 8-bit conversion discard quantitative data.",
+        "Do not apply non-linear adjustments (gamma, curves, local brightness or contrast) to a blot you will quantify or publish. Only linear adjustments applied to the whole image are acceptable, and they must be disclosed.",
       ],
     },
     {
       title: "Quantification caveats",
       bullets: [
-        "Only quantify within the linear range — signal must be proportional to protein amount. ECL saturates quickly.",
-        "Exclude saturated bands; run a dilution/standard series to confirm linearity for your sample.",
+        "Only quantify within the linear range, where signal is proportional to protein amount. ECL saturates quickly.",
+        "Exclude saturated bands, and run a dilution or standard series to confirm linearity for your sample.",
         "Normalise every target band to total protein or a validated loading control on the same blot.",
-        "Report uncropped originals and avoid over-interpreting small fold-changes.",
+        "Report uncropped originals, and avoid over-interpreting small fold-changes.",
       ],
     },
     {
       title: "Glossary",
       glossary: [
         ["SDS-PAGE", "Gel electrophoresis that separates denatured proteins by size."],
-        ["PVDF / Nitrocellulose", "Membrane types proteins are transferred onto; PVDF binds more protein and suits hydrophobic targets."],
-        ["Blocking", "Coating the membrane (milk/BSA) to stop antibodies sticking non-specifically."],
+        ["PVDF / Nitrocellulose", "Membrane types proteins are transferred onto. PVDF binds more protein and suits hydrophobic targets."],
+        ["Blocking", "Coating the membrane (milk or BSA) to stop antibodies binding non-specifically."],
         ["Epitope", "The specific region of the protein an antibody recognises."],
-        ["Isotype", "The antibody class (e.g. IgG); the secondary must match the primary's host and class."],
-        ["ECL", "Enhanced chemiluminescence — HRP-based light detection."],
-        ["pI", "Isoelectric point — the pH at which the protein has no net charge."],
+        ["Isotype", "The antibody class (for example IgG). The secondary must match the primary's host and class."],
+        ["ECL", "Enhanced chemiluminescence, an HRP-based light detection method."],
+        ["pI", "Isoelectric point, the pH at which the protein carries no net charge."],
         ["Loading control", "A reference signal showing lanes are evenly loaded."],
         ["Linear range", "The signal window where intensity is proportional to protein amount."],
-        ["pLDDT", "AlphaFold's per-residue confidence score (0–100) for the predicted structure."],
+        ["pLDDT", "AlphaFold's per-residue confidence score (0 to 100) for the predicted structure."],
+        ["CCD / CMOS", "Digital camera sensors used to capture blot images. Cooled CCD and scientific CMOS lower noise for faint signals."],
+        ["Binning", "Combining neighbouring sensor pixels to increase sensitivity and reduce exposure time, at the cost of resolution."],
+        ["TIFF", "A lossless image format. Save raw 16-bit TIFFs to preserve quantitative data, unlike JPEG."],
       ],
     },
   ];
@@ -1218,6 +1236,7 @@
         "div",
         { className: "runplan-block", key: `g-${gi}` },
         h("h3", { className: "runplan-h3" }, g.title),
+        g.lead ? h("p", { className: "runplan-lead" }, g.lead) : null,
         g.steps
           ? h("ol", { className: "runplan-steps" }, g.steps.map((s, i) => h("li", { key: i }, s)))
           : null,
@@ -1236,7 +1255,7 @@
 
     return h(
       SectionCard,
-      { number, title: "Run Plan & Guide", subtitle: "Your protocol and a Western blot reference in one place — print or save as PDF for your lab book." },
+      { number, title: "Run Plan & Guide", subtitle: "Your protocol and a Western blot reference in one place. Print or save as PDF for your lab book." },
       h(
         "div",
         { className: "runplan" },
@@ -1272,7 +1291,7 @@
                 ),
                 h("p", { className: "runplan-note" }, "Settings reflect your Stage 2 selections and protein chemistry. Adjust on the bench as your results dictate.")
               )
-            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1) and set your options in WB Predictive Strategy (Stage 2) — your personalised protocol will compile here above the reference guide."),
+            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1), then set your options in WB Predictive Strategy (Stage 2). Your personalised protocol will compile here, above the reference guide."),
           h("div", { className: "runplan-divider" }, h("span", null, "Western blot reference")),
           guideEls
         )
