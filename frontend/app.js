@@ -588,7 +588,8 @@
       ["strategy", "WB Predictive Strategy"],
       ["antibody", "Antibody Compatibility"],
       ["assistant", "Virtual Assistant"],
-      ["plan", "Run Plan & Guide"],
+      ["plan", "Run Plan"],
+      ["glossary", "Reference & Glossary"],
     ];
 
     let panel = null;
@@ -651,6 +652,8 @@
         phospho: planPhospho,
         overrides: planOverrides,
       });
+    } else if (activeTab === "glossary") {
+      panel = h(GlossarySection, { number: "06" });
     }
 
     return h(
@@ -1146,7 +1149,8 @@
 
   const WB_GUIDE = [
     {
-      title: "How a Western blot works (end to end)",
+      title: "Western blot reference: how it works",
+      lead: "The end-to-end workflow, so you can see where each Butterfly stage fits.",
       steps: [
         "Sample prep and lysis: extract protein, add reducing Laemmli buffer, then denature.",
         "SDS-PAGE: separate proteins by molecular weight.",
@@ -1161,53 +1165,36 @@
       ],
     },
     {
-      title: "Loading controls and normalisation",
+      title: "Things to consider",
+      lead: "Experimental-design choices that decide whether your blot can be compared and quantified.",
       bullets: [
-        "Use a loading control to show lanes carry comparable protein: a housekeeping protein (GAPDH, beta-actin, tubulin, vinculin), or a total-protein stain (Ponceau, stain-free, REVERT), which is increasingly preferred.",
-        "Total-protein normalisation is more robust than a single housekeeping gene, which can change with treatment, tissue, or disease state.",
-        "Pick a control at a different molecular weight from your target so both resolve cleanly.",
-        "Housekeeping proteins are very abundant and saturate easily, so keep them in the linear range or use total protein instead.",
+        "Loading control: show lanes carry comparable protein using a housekeeping protein (GAPDH, beta-actin, tubulin, vinculin) or, increasingly preferred, a total-protein stain (Ponceau, stain-free, REVERT).",
+        "Normalisation: total-protein normalisation is more robust than a single housekeeping gene, which can change with treatment, tissue, or disease state.",
+        "Pick a control at a different molecular weight from your target so both resolve cleanly, and keep abundant housekeeping proteins in the linear range (or use total protein) to avoid saturation.",
         "Stain-free technology images total protein directly: a trihalo compound in the gel reacts with tryptophan residues under UV, so you can verify loading and transfer efficiency without a separate stain or a housekeeping antibody.",
+        "Quantify only within the linear range; exclude saturated bands, run a dilution or standard series to confirm linearity, and report uncropped originals without over-interpreting small fold-changes.",
       ],
     },
     {
-      title: "Signal-to-noise (S/N)",
-      lead: "Signal-to-noise is the ratio of true band intensity to background. A clean, interpretable blot comes from raising signal and lowering noise, not from longer exposure (which raises both together).",
+      title: "Imaging considerations",
+      lead: "Signal-to-noise, capture, and acquisition. Decisions here can create or destroy quantifiable data, even on a perfect blot.",
       bullets: [
-        "Signal sources: enough target loaded, a well-validated antibody at the right dilution, efficient transfer, and fresh, sensitive substrate.",
-        "Noise sources: non-specific antibody binding, insufficient blocking, inadequate washing, dirty membranes or trays, and precipitated antibody.",
-        "To raise S/N, titrate the primary and secondary to the lowest dilution that still gives clear signal, block appropriately (BSA for phospho targets), and wash thoroughly (the volume and number of washes matter more than the time).",
-        "Over-exposing or over-loading does not improve S/N; it pushes both signal and background up and can hide real differences.",
-        "Always run a no-primary (secondary-only) control to reveal background that has nothing to do with your target.",
-      ],
-    },
-    {
-      title: "Imaging (more than just capture)",
-      lead: "Imaging is acquisition, sensor choice, and how you handle the file afterwards. Decisions here can create or destroy quantifiable data, even on a perfect blot.",
-      bullets: [
-        "Match the imager to the chemistry: chemiluminescence (HRP, ECL) needs a sensitive low-light camera, while fluorescence needs the correct excitation and emission channels.",
+        "Signal-to-noise (S/N) is true band intensity over background. Raise signal and lower noise rather than exposing longer, which raises both together.",
+        "Signal sources: enough target loaded, a validated antibody at the right dilution, efficient transfer, fresh substrate. Noise sources: non-specific binding, weak blocking, poor washing, dirty membranes or trays.",
+        "Run a no-primary (secondary-only) control to reveal background unrelated to your target.",
         "Dynamic range: capture so the strongest band of interest sits below saturation. Saturated (clipped) pixels lose information and cannot be quantified.",
         "Always take an exposure series and keep the longest unsaturated frame, rather than a single fixed exposure.",
-        "Sensor type: cooled CCD and scientific CMOS (sCMOS) sensors reduce thermal and read noise for faint signals, and cooling matters for long chemiluminescence exposures.",
+        "Sensor type: cooled CCD and scientific CMOS (sCMOS) reduce thermal and read noise for faint signals, and cooling matters for long chemiluminescence exposures.",
         "Binning combines neighbouring pixels to boost sensitivity and shorten exposure, at the cost of spatial resolution (useful for weak blots, less so for fine band detail).",
         "Even illumination and flat-field correction matter for fluorescence, because uneven lighting mimics real intensity differences.",
+        "Contrast and brightness: do not apply non-linear adjustments (gamma, curves, local edits) to a blot you will quantify or publish. Only linear adjustments across the whole image are acceptable, and they must be disclosed.",
         "Save the raw, lossless 16-bit TIFF. JPEG compression and 8-bit conversion discard quantitative data.",
-        "Do not apply non-linear adjustments (gamma, curves, local brightness or contrast) to a blot you will quantify or publish. Only linear adjustments applied to the whole image are acceptable, and they must be disclosed.",
-        "Film versus digital: X-ray film has a non-linear response and a narrow linear range, so it is poor for quantification. A digital CCD or sCMOS imager gives linear, quantifiable output and a file you can archive.",
-        "Multiplex fluorescence: when two targets are read in different channels, watch for spectral bleed-through (signal from one fluorophore leaking into another channel). Use spectrally distinct dyes, single-stain controls, and proper channel separation to confirm each signal is real.",
+        "Film versus digital: X-ray film has a non-linear response and a narrow linear range, so it is poor for quantification. A digital CCD or sCMOS imager gives linear, quantifiable output and an archivable file.",
+        "Multiplex fluorescence: watch for spectral bleed-through (signal from one fluorophore leaking into another channel). Use spectrally distinct dyes, single-stain controls, and proper channel separation to confirm each signal is real.",
       ],
     },
     {
-      title: "Quantification caveats",
-      bullets: [
-        "Only quantify within the linear range, where signal is proportional to protein amount. ECL saturates quickly.",
-        "Exclude saturated bands, and run a dilution or standard series to confirm linearity for your sample.",
-        "Normalise every target band to total protein or a validated loading control on the same blot.",
-        "Report uncropped originals, and avoid over-interpreting small fold-changes.",
-      ],
-    },
-    {
-      title: "Glossary",
+      title: "Glossary of terms",
       glossary: [
         ["SDS-PAGE", "Gel electrophoresis that separates denatured proteins by size."],
         ["PVDF / Nitrocellulose", "Membrane types proteins are transferred onto. PVDF binds more protein and suits hydrophobic targets."],
@@ -1217,7 +1204,11 @@
         ["ECL", "Enhanced chemiluminescence, an HRP-based light detection method."],
         ["pI", "Isoelectric point, the pH at which the protein carries no net charge."],
         ["Loading control", "A reference signal showing lanes are evenly loaded."],
+        ["Normalisation", "Adjusting target signal to a loading control or total protein so lanes can be compared."],
+        ["Stain-free", "Gel chemistry that makes total protein visible under UV, used to check loading and transfer."],
         ["Linear range", "The signal window where intensity is proportional to protein amount."],
+        ["Dynamic range", "The span between the faintest and brightest signal a detector can record without clipping."],
+        ["Bleed-through", "Signal from one fluorophore appearing in another channel due to spectral overlap."],
         ["pLDDT", "AlphaFold's per-residue confidence score (0 to 100) for the predicted structure."],
         ["CCD / CMOS", "Digital camera sensors used to capture blot images. Cooled CCD and scientific CMOS lower noise for faint signals."],
         ["Binning", "Combining neighbouring sensor pixels to increase sensitivity and reduce exposure time, at the cost of resolution."],
@@ -1234,31 +1225,9 @@
     const decisions = ready ? buildProtocolDecisions(proteinIntelligence, { abundance, phospho }) : [];
     const valueFor = (d) => (overrides && overrides[d.id]) || d.value;
 
-    const guideEls = WB_GUIDE.map((g, gi) =>
-      h(
-        "div",
-        { className: "runplan-block", key: `g-${gi}` },
-        h("h3", { className: "runplan-h3" }, g.title),
-        g.lead ? h("p", { className: "runplan-lead" }, g.lead) : null,
-        g.steps
-          ? h("ol", { className: "runplan-steps" }, g.steps.map((s, i) => h("li", { key: i }, s)))
-          : null,
-        g.bullets
-          ? h("ul", { className: "runplan-list" }, g.bullets.map((s, i) => h("li", { key: i }, s)))
-          : null,
-        g.glossary
-          ? h(
-              "dl",
-              { className: "runplan-glossary" },
-              g.glossary.map((row, i) => h(React.Fragment, { key: i }, h("dt", null, row[0]), h("dd", null, row[1])))
-            )
-          : null
-      )
-    );
-
     return h(
       SectionCard,
-      { number, title: "Run Plan & Guide", subtitle: "Your protocol and a Western blot reference in one place. Print or save as PDF for your lab book." },
+      { number, title: "Run Plan", subtitle: "Your protocol, built from this protein and your Stage 2 choices. Print or save as PDF for your lab book." },
       h(
         "div",
         { className: "runplan" },
@@ -1292,12 +1261,49 @@
                     decisions.map((d) => h("tr", { key: d.id }, h("th", null, d.title), h("td", null, valueFor(d))))
                   )
                 ),
-                h("p", { className: "runplan-note" }, "Settings reflect your Stage 2 selections and protein chemistry. Adjust on the bench as your results dictate.")
+                h("p", { className: "runplan-note" }, "Settings reflect your Stage 2 selections and protein chemistry. Adjust on the bench as your results dictate. See Reference & Glossary (Stage 6) for the why behind each choice.")
               )
-            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1), then set your options in WB Predictive Strategy (Stage 2). Your personalised protocol will compile here, above the reference guide."),
-          h("div", { className: "runplan-divider" }, h("span", null, "Western blot reference")),
-          guideEls
+            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1), then set your options in WB Predictive Strategy (Stage 2). Your personalised protocol will compile here."),
         )
+      )
+    );
+  }
+
+  function GlossarySection({ number }) {
+    const guideEls = WB_GUIDE.map((g, gi) =>
+      h(
+        "div",
+        { className: "runplan-block", key: `g-${gi}` },
+        h("h3", { className: "runplan-h3" }, g.title),
+        g.lead ? h("p", { className: "runplan-lead" }, g.lead) : null,
+        g.steps
+          ? h("ol", { className: "runplan-steps" }, g.steps.map((s, i) => h("li", { key: i }, s)))
+          : null,
+        g.bullets
+          ? h("ul", { className: "runplan-list" }, g.bullets.map((s, i) => h("li", { key: i }, s)))
+          : null,
+        g.glossary
+          ? h(
+              "dl",
+              { className: "runplan-glossary" },
+              g.glossary.map((row, i) => h(React.Fragment, { key: i }, h("dt", null, row[0]), h("dd", null, row[1])))
+            )
+          : null
+      )
+    );
+
+    return h(
+      SectionCard,
+      { number, title: "Reference & Glossary", subtitle: "A plain-language Western blot reference and the terms used across Butterfly. Print or save as PDF for your lab book." },
+      h(
+        "div",
+        { className: "runplan" },
+        h(
+          "div",
+          { className: "runplan-actions no-print" },
+          h("button", { className: "button button-primary", type: "button", onClick: () => window.print() }, "Print / Save as PDF")
+        ),
+        h("div", { className: "print-area" }, guideEls)
       )
     );
   }
