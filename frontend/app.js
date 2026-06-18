@@ -985,7 +985,7 @@
     const af = proteinIntelligence.alphafold || {};
 
     const known = [
-      ["Size", mw ? `${mw} kDa` : "n/a"],
+      ["Size", mw ? `${Math.round(mw)} kDa` : "n/a"],
       ["Charge (pI)", pIv != null && pIv !== "" ? `${pIv} (${pIv < 5.5 ? "acidic" : pIv <= 8 ? "neutral" : "basic"})` : "n/a"],
       ["Solubility", hydrophobic ? "Hydrophobic / membrane" : "Soluble"],
       ["Aggregation", chem.aggregation_risk || "n/a"],
@@ -1038,21 +1038,31 @@
         { className: "proto-card", key: d.id },
         h("p", { className: "proto-card-title" }, d.title),
         h("p", { className: "proto-card-value" }, valueFor(d)),
-        h("p", { className: "proto-card-why" }, d.why),
+        h(
+          "div",
+          { className: "proto-card-whyrow" },
+          h("span", { className: "proto-why-tag" }, "Why"),
+          h("p", { className: "proto-card-why" }, d.why)
+        ),
         d.options && d.options.length
           ? h(
               "div",
-              { className: "proto-options" },
-              d.options.map((opt) =>
-                h(
-                  "button",
-                  {
-                    key: opt,
-                    type: "button",
-                    className: valueFor(d) === opt ? "proto-opt proto-opt-on" : "proto-opt",
-                    onClick: () => setOverrides((prev) => ({ ...prev, [d.id]: opt })),
-                  },
-                  opt
+              { className: "proto-switch" },
+              h("p", { className: "proto-switch-label" }, "Switch to"),
+              h(
+                "div",
+                { className: "proto-options" },
+                d.options.map((opt) =>
+                  h(
+                    "button",
+                    {
+                      key: opt,
+                      type: "button",
+                      className: valueFor(d) === opt ? "proto-opt proto-opt-on" : "proto-opt",
+                      onClick: () => setOverrides((prev) => ({ ...prev, [d.id]: opt })),
+                    },
+                    opt
+                  )
                 )
               )
             )
@@ -1062,21 +1072,24 @@
     return h(
       "div",
       { className: "dtree proto-planner" },
-      h("p", { className: "dtree-kicker" }, "Protocol planner"),
-      h("h3", { className: "dtree-title" }, "Your protocol, built from this protein"),
-      h("p", { className: "dtree-sub" }, "Tell Butterfly the two things it can't read from the sequence, then walk down the protocol — every setting is derived from your protein, with the reasoning attached, and you can switch any choice."),
       h(
         "div",
         { className: "proto-context" },
-        chipRow("Target abundance", abundance, abundance, setAbundance, [
-          { val: "low", label: "Low / rare" },
-          { val: "moderate", label: "Moderate" },
-          { val: "high", label: "High" },
-        ]),
-        chipRow("Antibody type", phospho, phospho, setPhospho, [
-          { val: false, label: "Total protein" },
-          { val: true, label: "Phospho-specific" },
-        ])
+        h("p", { className: "proto-context-head" }, "First, set two things Butterfly can't read from the sequence"),
+        h("p", { className: "proto-context-sub" }, "Your answers tune the load, blocking, antibody and detection choices below. Tap to select."),
+        h(
+          "div",
+          { className: "proto-context-rows" },
+          chipRow("How abundant is your target in the sample?", abundance, abundance, setAbundance, [
+            { val: "low", label: "Low / rare" },
+            { val: "moderate", label: "Moderate" },
+            { val: "high", label: "High" },
+          ]),
+          chipRow("What kind of primary antibody?", phospho, phospho, setPhospho, [
+            { val: false, label: "Total protein" },
+            { val: true, label: "Phospho-specific" },
+          ])
+        )
       ),
       h(
         "div",
@@ -1124,7 +1137,7 @@
   function PredictedStrategySection({ number, experiment, proteinIntelligence }) {
     return h(
       SectionCard,
-      { number, title: "Predictive Strategy", subtitle: "Butterfly turns your Stage 1 protein data into concrete, adjustable Western blot protocol decisions — so you can set up (or amend) the run with the reasoning in front of you." },
+      { number, title: "Predictive Protocol Strategy", subtitle: "Butterfly has used the protein sequence to generate a protocol with specific reasoning." },
       h(ProtocolPlanner, { proteinIntelligence, experiment })
     );
   }
