@@ -584,7 +584,6 @@
       ["intel", "Protein Intelligence"],
       ["strategy", "WB Predictive Strategy"],
       ["antibody", "Antibody Compatibility"],
-      ["log", "Experiment Log"],
       ["assistant", "Virtual Assistant"],
     ];
 
@@ -617,21 +616,9 @@
         loading: antibodyCompatibilityLoading,
         proteinIntelligence,
       });
-    } else if (activeTab === "log") {
-      panel = h(ExperimentLogSection, {
-        number: "04",
-        experiment,
-        updateField,
-        analyses,
-        previews,
-        onUpload: analyseStage,
-        onAIInterpret: generateAIInterpretation,
-        aiInterpretations,
-        aiLoadingStage,
-      });
     } else if (activeTab === "assistant") {
       panel = h(VirtualAssistantSection, {
-        number: "05",
+        number: "04",
         experiment,
         updateField,
         analyses,
@@ -1439,7 +1426,7 @@
         number,
         title: "Virtual Assistant",
         subtitle:
-          "Upload a blot for Butterfly to read, or walk through the guided diagnosis. Either way you get ranked, proactive fixes — and an optional full analysis using your image, protein chemistry, and saved runs.",
+          "Upload a blot for Butterfly to read, or walk through the guided diagnosis. Either way you get ranked, proactive fixes — and an optional full analysis using your image and protein chemistry.",
       },
       h(
         "div",
