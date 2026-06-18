@@ -85,6 +85,9 @@
     const [proteinFirstLoading, setProteinFirstLoading] = useState(false);
     const [assistantScanLoading, setAssistantScanLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("intel");
+    const [planAbundance, setPlanAbundance] = useState("moderate");
+    const [planPhospho, setPlanPhospho] = useState(false);
+    const [planOverrides, setPlanOverrides] = useState({});
 
     useEffect(() => {
       checkAuth();
@@ -585,6 +588,7 @@
       ["strategy", "WB Predictive Strategy"],
       ["antibody", "Antibody Compatibility"],
       ["assistant", "Virtual Assistant"],
+      ["plan", "Run Plan & Guide"],
     ];
 
     let panel = null;
@@ -603,8 +607,13 @@
     } else if (activeTab === "strategy") {
       panel = h(PredictedStrategySection, {
         number: "02",
-        experiment,
         proteinIntelligence,
+        abundance: planAbundance,
+        phospho: planPhospho,
+        overrides: planOverrides,
+        setAbundance: setPlanAbundance,
+        setPhospho: setPlanPhospho,
+        setOverrides: setPlanOverrides,
       });
     } else if (activeTab === "antibody") {
       panel = h(AntibodyCompatibilitySection, {
@@ -633,6 +642,14 @@
         scanLoading: assistantScanLoading,
         scanResult: aiInterpretations.final,
         scanPreview: previews.final,
+      });
+    } else if (activeTab === "plan") {
+      panel = h(RunPlanSection, {
+        number: "05",
+        proteinIntelligence,
+        abundance: planAbundance,
+        phospho: planPhospho,
+        overrides: planOverrides,
       });
     }
 
@@ -704,7 +721,7 @@
       h(
         "div",
         { className: "hero-copy" },
-        h("p", { className: "eyebrow" }, "Generative Western Blot Optimisation"),
+        h("p", { className: "eyebrow" }, "Protein-led Western Blot Optimisation"),
         h("h1", null, "Butterfly"),
         h(
           "p",
@@ -923,17 +940,8 @@
     ];
   }
 
-  function ProtocolPlanner({ proteinIntelligence, experiment }) {
+  function ProtocolPlanner({ proteinIntelligence, abundance, phospho, overrides, setAbundance, setPhospho, setOverrides }) {
     const ready = proteinIntelligence && proteinIntelligence.chemistry && proteinIntelligence.chemistry.molecular_weight_kda;
-    const initialAbundance = (() => {
-      const a = (experiment && experiment.target_abundance_class) || "moderate";
-      if (a === "very low" || a === "low") return "low";
-      if (a === "very high" || a === "high") return "high";
-      return "moderate";
-    })();
-    const [abundance, setAbundance] = useState(initialAbundance);
-    const [phospho, setPhospho] = useState((experiment && experiment.primary_type) === "phospho");
-    const [overrides, setOverrides] = useState({});
     const [copied, setCopied] = useState(false);
 
     if (!ready) {
@@ -1136,11 +1144,147 @@
     );
   }
 
-  function PredictedStrategySection({ number, experiment, proteinIntelligence }) {
+  const WB_GUIDE = [
+    {
+      title: "How a Western blot works (end to end)",
+      steps: [
+        "Sample prep & lysis — extract protein, add reducing Laemmli buffer, denature.",
+        "SDS-PAGE — separate proteins by molecular weight.",
+        "Transfer — move proteins from gel onto a PVDF or nitrocellulose membrane.",
+        "Blocking — coat the membrane to prevent non-specific antibody binding.",
+        "Primary antibody — binds your target.",
+        "Wash — remove unbound primary.",
+        "Secondary antibody — anti-host, carries the reporter (e.g. HRP).",
+        "Wash — remove unbound secondary.",
+        "Detection — ECL or fluorescence; capture on a CCD/CMOS imager.",
+        "Analysis — read band size against the ladder and normalise to a loading control.",
+      ],
+    },
+    {
+      title: "Loading controls & normalisation",
+      bullets: [
+        "Use a loading control to show lanes carry comparable protein: a housekeeping protein (GAPDH, β-actin, tubulin, vinculin) or — increasingly preferred — a total-protein stain (Ponceau, stain-free, REVERT).",
+        "Total-protein normalisation is more robust than a single housekeeping gene, which can change with treatment, tissue or disease.",
+        "Pick a control at a different molecular weight from your target so both resolve cleanly.",
+        "Housekeeping proteins are very abundant and saturate easily — keep them in the linear range or use total protein instead.",
+      ],
+    },
+    {
+      title: "Signal-to-noise & CCD/CMOS imaging",
+      bullets: [
+        "Signal-to-noise (S/N) is your band relative to background — maximise it with good blocking, thorough washing, and the right exposure, not by over-staining.",
+        "Capture within the imager's linear dynamic range. Saturated pixels cap the true signal and make quantification invalid.",
+        "Take an exposure series and use the frame where the strongest band of interest is still below saturation.",
+        "Cooled CCD/CMOS sensors lower read-noise for faint blots; pixel binning boosts sensitivity at the cost of resolution.",
+        "Keep the raw 16-bit TIFF. Never apply non-linear brightness/contrast or local edits to a blot you intend to quantify or publish.",
+      ],
+    },
+    {
+      title: "Quantification caveats",
+      bullets: [
+        "Only quantify within the linear range — signal must be proportional to protein amount. ECL saturates quickly.",
+        "Exclude saturated bands; run a dilution/standard series to confirm linearity for your sample.",
+        "Normalise every target band to total protein or a validated loading control on the same blot.",
+        "Report uncropped originals and avoid over-interpreting small fold-changes.",
+      ],
+    },
+    {
+      title: "Glossary",
+      glossary: [
+        ["SDS-PAGE", "Gel electrophoresis that separates denatured proteins by size."],
+        ["PVDF / Nitrocellulose", "Membrane types proteins are transferred onto; PVDF binds more protein and suits hydrophobic targets."],
+        ["Blocking", "Coating the membrane (milk/BSA) to stop antibodies sticking non-specifically."],
+        ["Epitope", "The specific region of the protein an antibody recognises."],
+        ["Isotype", "The antibody class (e.g. IgG); the secondary must match the primary's host and class."],
+        ["ECL", "Enhanced chemiluminescence — HRP-based light detection."],
+        ["pI", "Isoelectric point — the pH at which the protein has no net charge."],
+        ["Loading control", "A reference signal showing lanes are evenly loaded."],
+        ["Linear range", "The signal window where intensity is proportional to protein amount."],
+        ["pLDDT", "AlphaFold's per-residue confidence score (0–100) for the predicted structure."],
+      ],
+    },
+  ];
+
+  function RunPlanSection({ number, proteinIntelligence, abundance, phospho, overrides }) {
+    const ready = proteinIntelligence && proteinIntelligence.chemistry && proteinIntelligence.chemistry.molecular_weight_kda;
+    const identity = (proteinIntelligence && proteinIntelligence.uniprot) || {};
+    const chem = (proteinIntelligence && proteinIntelligence.chemistry) || {};
+    const targetName = identity.protein_name || (proteinIntelligence && proteinIntelligence.resolved_accession) || "your target";
+    const decisions = ready ? buildProtocolDecisions(proteinIntelligence, { abundance, phospho }) : [];
+    const valueFor = (d) => (overrides && overrides[d.id]) || d.value;
+
+    const guideEls = WB_GUIDE.map((g, gi) =>
+      h(
+        "div",
+        { className: "runplan-block", key: `g-${gi}` },
+        h("h3", { className: "runplan-h3" }, g.title),
+        g.steps
+          ? h("ol", { className: "runplan-steps" }, g.steps.map((s, i) => h("li", { key: i }, s)))
+          : null,
+        g.bullets
+          ? h("ul", { className: "runplan-list" }, g.bullets.map((s, i) => h("li", { key: i }, s)))
+          : null,
+        g.glossary
+          ? h(
+              "dl",
+              { className: "runplan-glossary" },
+              g.glossary.map((row, i) => h(React.Fragment, { key: i }, h("dt", null, row[0]), h("dd", null, row[1])))
+            )
+          : null
+      )
+    );
+
+    return h(
+      SectionCard,
+      { number, title: "Run Plan & Guide", subtitle: "Your protocol and a Western blot reference in one place — print or save as PDF for your lab book." },
+      h(
+        "div",
+        { className: "runplan" },
+        h(
+          "div",
+          { className: "runplan-actions no-print" },
+          h("button", { className: "button button-primary", type: "button", onClick: () => window.print() }, "Print / Save as PDF")
+        ),
+        h(
+          "div",
+          { className: "print-area" },
+          h(
+            "div",
+            { className: "runplan-head" },
+            h("h2", { className: "runplan-h2" }, "Western blot run plan"),
+            ready
+              ? h("p", { className: "runplan-meta" }, [targetName, proteinIntelligence.resolved_accession, chem.molecular_weight_kda ? `${Math.round(chem.molecular_weight_kda)} kDa` : null].filter(Boolean).join("  ·  "))
+              : null
+          ),
+          ready
+            ? h(
+                "div",
+                { className: "runplan-block" },
+                h("h3", { className: "runplan-h3" }, "Recommended protocol"),
+                h(
+                  "table",
+                  { className: "runplan-table" },
+                  h(
+                    "tbody",
+                    null,
+                    decisions.map((d) => h("tr", { key: d.id }, h("th", null, d.title), h("td", null, valueFor(d))))
+                  )
+                ),
+                h("p", { className: "runplan-note" }, "Settings reflect your Stage 2 selections and protein chemistry. Adjust on the bench as your results dictate.")
+              )
+            : h("div", { className: "empty-state" }, "Run Protein Intelligence (Stage 1) and set your options in WB Predictive Strategy (Stage 2) — your personalised protocol will compile here above the reference guide."),
+          h("div", { className: "runplan-divider" }, h("span", null, "Western blot reference")),
+          guideEls
+        )
+      )
+    );
+  }
+
+  function PredictedStrategySection({ number, proteinIntelligence, abundance, phospho, overrides, setAbundance, setPhospho, setOverrides }) {
     return h(
       SectionCard,
       { number, title: "Predictive Protocol Strategy", subtitle: "Butterfly has used the protein sequence to generate a protocol with specific reasoning." },
-      h(ProtocolPlanner, { proteinIntelligence, experiment })
+      h(ProtocolPlanner, { proteinIntelligence, abundance, phospho, overrides, setAbundance, setPhospho, setOverrides })
     );
   }
 
