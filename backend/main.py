@@ -1,3 +1,7 @@
+# Butterfly — Protein-led Western Blot Optimisation
+# Copyright (c) The Alibi Collection. All rights reserved.
+# Proprietary and confidential. Unauthorised copying, modification, or
+# redistribution of this file, via any medium, is strictly prohibited.
 from __future__ import annotations
 
 import base64

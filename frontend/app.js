@@ -1,3 +1,9 @@
+/*!
+ * Butterfly — Protein-led Western Blot Optimisation
+ * Copyright © The Alibi Collection. All rights reserved.
+ * Proprietary and confidential. Unauthorised copying, modification, or
+ * redistribution of this file, via any medium, is strictly prohibited.
+ */
 (function () {
   const h = React.createElement;
   const { useEffect, useMemo, useState, useRef } = React;
@@ -669,7 +675,8 @@
         "footer",
         { className: "app-footer" },
         h("p", null, "Butterfly · Developed by The Alibi Collection"),
-        h("p", { className: "app-footer-fine" }, `© ${new Date().getFullYear()} The Alibi Collection. All rights reserved.`)
+        h("p", { className: "app-footer-fine" }, `© ${new Date().getFullYear()} The Alibi Collection. All rights reserved.`),
+        h("p", { className: "app-footer-fine" }, "Proprietary software. Unauthorised copying or redistribution is prohibited.")
       )
     );
   }

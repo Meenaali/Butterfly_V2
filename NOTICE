@@ -1,0 +1,14 @@
+Butterfly — Protein-led Western Blot Optimisation
+Copyright (c) The Alibi Collection. All rights reserved.
+
+Developed by The Alibi Collection.
+
+This product is proprietary software. See the LICENSE file for terms.
+Unauthorised copying or redistribution is prohibited.
+
+Third-party data sources used at runtime (their own terms apply):
+- UniProt (https://www.uniprot.org)
+- AlphaFold Protein Structure Database, EMBL-EBI (https://alphafold.ebi.ac.uk)
+- EMBL-EBI Proteins API (https://www.ebi.ac.uk/proteins/api)
+- Europe PMC (https://europepmc.org)
+- 3Dmol.js (structure viewer)

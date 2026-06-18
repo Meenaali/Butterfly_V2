@@ -2487,7 +2487,7 @@ textarea:focus {
     visibility: visible;
   }
   .print-area::after {
-    content: "Butterfly  ·  © The Alibi Collection.  All rights reserved.";
+    content: "Butterfly  ·  © The Alibi Collection.  All rights reserved.  Proprietary; unauthorised copying prohibited.";
     visibility: visible;
     display: block;
     margin-top: 1.6rem;
