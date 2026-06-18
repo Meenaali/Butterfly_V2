@@ -2456,6 +2456,28 @@ textarea:focus {
   background: rgba(217, 139, 25, 0.3);
 }
 
+.app-footer {
+  margin-top: 2.5rem;
+  padding: 1.4rem 0 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  text-align: center;
+  color: #1d1d1f;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+
+.app-footer p {
+  margin: 0.15rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-footer .app-footer-fine {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: #5a4a1f;
+}
+
 @media print {
   body * {
     visibility: hidden;
@@ -2463,6 +2485,16 @@ textarea:focus {
   .print-area,
   .print-area * {
     visibility: visible;
+  }
+  .print-area::after {
+    content: "Butterfly  ·  © The Alibi Collection.  All rights reserved.";
+    visibility: visible;
+    display: block;
+    margin-top: 1.6rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.2);
+    font-size: 0.75rem;
+    color: #444;
   }
   .print-area {
     position: absolute;

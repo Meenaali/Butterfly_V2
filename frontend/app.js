@@ -664,7 +664,13 @@
           )
         )
       ),
-      h("div", { className: "tab-panel" }, panel)
+      h("div", { className: "tab-panel" }, panel),
+      h(
+        "footer",
+        { className: "app-footer" },
+        h("p", null, "Butterfly · Developed by The Alibi Collection"),
+        h("p", { className: "app-footer-fine" }, `© ${new Date().getFullYear()} The Alibi Collection. All rights reserved.`)
+      )
     );
   }
 
