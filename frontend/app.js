@@ -755,7 +755,7 @@
       h(
         "div",
         { className: "hero-visual" },
-        h("div", { className: "brand-mark-shell" }, h("img", { src: "/assets/butterfly-logo-v6.png?v=1", alt: "Rorschach western blot butterfly mark", className: "brand-mark" })),
+        h("div", { className: "brand-mark-shell" }, h("img", { src: "/assets/Butterfly-logo-v7.jpg?v=7", alt: "Rorschach western blot butterfly mark", className: "brand-mark" })),
         h(
           "div",
           { className: "hero-grid" },
