@@ -1,5 +1,5 @@
 :root {
-  --bg: #f5f3ea;
+  --bg: #e79f31;
   --panel: #ffffff;
   --panel-strong: #ffffff;
   --panel-soft: #faf7ec;
@@ -26,9 +26,10 @@ body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(253, 183, 62, 0.12), transparent 34%),
-    radial-gradient(circle at bottom right, rgba(217, 139, 25, 0.10), transparent 32%),
-    linear-gradient(180deg, #fbf9f2, #f5f3ea 60%, #f1eddf);
+    radial-gradient(circle at top left, rgba(253, 212, 139, 0.55), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(217, 139, 25, 0.4), transparent 40%),
+    linear-gradient(180deg, #ecaa45, #e79f31 55%, #db8f23);
+  background-attachment: fixed;
 }
 
 .app-shell {
