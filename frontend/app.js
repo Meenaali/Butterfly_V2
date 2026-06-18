@@ -604,14 +604,7 @@
       panel = h(PredictedStrategySection, {
         number: "02",
         experiment,
-        strategyReady,
-        recommendations,
-        proteinFirstPlan,
         proteinIntelligence,
-        onGenerate: generateProteinFirstPlan,
-        onReset: startNew,
-        status,
-        proteinFirstLoading,
       });
     } else if (activeTab === "antibody") {
       panel = h(AntibodyCompatibilitySection, {
@@ -981,12 +974,97 @@
         )
       );
 
+    const chem = proteinIntelligence.chemistry || {};
+    const counts = (proteinIntelligence.ebi_features && proteinIntelligence.ebi_features.counts) || {};
+    const identity = proteinIntelligence.uniprot || {};
+    const mw = Number(chem.molecular_weight_kda || 0);
+    const pIv = chem.theoretical_pI;
+    const hydrophobic = chem.membrane_retention_risk === "high" || Number(chem.hydrophobic_domain_count || 0) > 0 || Number(chem.hydrophobic_fraction || 0) >= 0.38;
+    const glyco = Number(chem.glycosylation_sites || counts.CARBOHYD || 0);
+    const processed = Number(chem.cleavage_site_count || 0) > 0 || Number(counts.SIGNAL || 0) > 0;
+    const af = proteinIntelligence.alphafold || {};
+
+    const known = [
+      ["Size", mw ? `${mw} kDa` : "n/a"],
+      ["Charge (pI)", pIv != null && pIv !== "" ? `${pIv} (${pIv < 5.5 ? "acidic" : pIv <= 8 ? "neutral" : "basic"})` : "n/a"],
+      ["Solubility", hydrophobic ? "Hydrophobic / membrane" : "Soluble"],
+      ["Aggregation", chem.aggregation_risk || "n/a"],
+      ["Glycosylation", glyco > 0 ? `${glyco} site(s)` : "None predicted"],
+      ["Processing", processed ? "Cleavage / signal sites" : "None notable"],
+      ["Structure", af.available ? `${af.confidence_label} · pLDDT ${af.mean_plddt}` : "n/a"],
+    ];
+
+    // Accessible epitope region from real topology features.
+    const rawFeatures = (proteinIntelligence.ebi_features && proteinIntelligence.ebi_features.examples) || [];
+    const seqLen = Number(identity.sequence_length || chem.sequence_length || 0);
+    const avoidTypes = { TRANSMEM: 1, INTRAMEM: 1, SIGNAL: 1, PROPEP: 1, TRANSIT: 1 };
+    const avoid = rawFeatures
+      .map((f) => ({ type: f.type, begin: Number(f.begin), end: Number(f.end) }))
+      .filter((f) => avoidTypes[f.type] && Number.isFinite(f.begin) && Number.isFinite(f.end) && f.end >= f.begin)
+      .sort((a, b) => a.begin - b.begin);
+    let bestRegion = null;
+    if (seqLen) {
+      const acc = [];
+      let cur = 1;
+      avoid.forEach((f) => {
+        if (f.begin > cur) acc.push({ begin: cur, end: f.begin - 1 });
+        cur = Math.max(cur, f.end + 1);
+      });
+      if (cur <= seqLen) acc.push({ begin: cur, end: seqLen });
+      acc.forEach((s) => {
+        if (!bestRegion || s.end - s.begin > bestRegion.end - bestRegion.begin) bestRegion = s;
+      });
+    }
+    const targetName = identity.protein_name || proteinIntelligence.resolved_accession || "your target";
+    const abStrategy = [
+      bestRegion && avoid.length
+        ? `Target an epitope in an accessible region — the largest is residues ${bestRegion.begin}–${bestRegion.end}. Avoid transmembrane/signal stretches (buried in the membrane or cleaved off).`
+        : "Most of the chain is accessible — pick an epitope unique to your protein and away from conserved family motifs.",
+      "Choose a primary raised in a species different from your sample, and match the secondary to that host. A validated recombinant/monoclonal gives the cleanest single band; a polyclonal gives stronger but multi-epitope signal.",
+      glyco > 0 ? "Glycoprotein — prefer antibodies validated on the native form; the band may shift with glycosylation." : null,
+      `Find validated options: search CiteAb or BenchSci for “${targetName} western blot”, favouring antibodies with WB validation images and citations.`,
+    ].filter(Boolean);
+
+    const groups = [
+      { title: "Sample preparation", ids: ["prep"] },
+      { title: "Electrophoresis strategy", ids: ["gel", "load", "controls"] },
+      { title: "Transfer & blocking", ids: ["membrane", "transfer", "blocking", "wash"] },
+      { title: "Recommended antibody strategy", ids: ["primary", "detection"] },
+    ];
+
+    const cardFor = (d) =>
+      h(
+        "div",
+        { className: "proto-card", key: d.id },
+        h("p", { className: "proto-card-title" }, d.title),
+        h("p", { className: "proto-card-value" }, valueFor(d)),
+        h("p", { className: "proto-card-why" }, d.why),
+        d.options && d.options.length
+          ? h(
+              "div",
+              { className: "proto-options" },
+              d.options.map((opt) =>
+                h(
+                  "button",
+                  {
+                    key: opt,
+                    type: "button",
+                    className: valueFor(d) === opt ? "proto-opt proto-opt-on" : "proto-opt",
+                    onClick: () => setOverrides((prev) => ({ ...prev, [d.id]: opt })),
+                  },
+                  opt
+                )
+              )
+            )
+          : null
+      );
+
     return h(
       "div",
       { className: "dtree proto-planner" },
       h("p", { className: "dtree-kicker" }, "Protocol planner"),
       h("h3", { className: "dtree-title" }, "Your protocol, built from this protein"),
-      h("p", { className: "dtree-sub" }, "Every setting below is derived from your Stage 1 protein data. Tell Butterfly two things it can't know, then adjust any decision — the reasoning updates with your protein."),
+      h("p", { className: "dtree-sub" }, "Tell Butterfly the two things it can't read from the sequence, then walk down the protocol — every setting is derived from your protein, with the reasoning attached, and you can switch any choice."),
       h(
         "div",
         { className: "proto-context" },
@@ -1002,33 +1080,37 @@
       ),
       h(
         "div",
-        { className: "proto-grid" },
-        decisions.map((d) =>
-          h(
-            "div",
-            { className: "proto-card", key: d.id },
-            h("p", { className: "proto-card-title" }, d.title),
-            h("p", { className: "proto-card-value" }, valueFor(d)),
-            h("p", { className: "proto-card-why" }, d.why),
-            d.options && d.options.length
-              ? h(
-                  "div",
-                  { className: "proto-options" },
-                  d.options.map((opt) =>
-                    h(
-                      "button",
-                      {
-                        key: opt,
-                        type: "button",
-                        className: valueFor(d) === opt ? "proto-opt proto-opt-on" : "proto-opt",
-                        onClick: () => setOverrides((prev) => ({ ...prev, [d.id]: opt })),
-                      },
-                      opt
-                    )
-                  )
-                )
-              : null
+        { className: "intel-apple-card proto-known" },
+        h("p", { className: "intel-why-kicker" }, "What we know from your protein"),
+        h("p", { className: "domain-sub" }, "These Stage 1 properties drive every recommendation below."),
+        h(
+          "div",
+          { className: "proto-known-grid" },
+          known.map((kv, i) =>
+            h(
+              "div",
+              { className: "proto-known-item", key: i },
+              h("span", { className: "proto-known-label" }, kv[0]),
+              h("span", { className: "proto-known-value" }, String(kv[1]))
+            )
           )
+        )
+      ),
+      groups.map((g, gi) =>
+        h(
+          "div",
+          { className: "proto-section", key: gi },
+          h("p", { className: "proto-group-title" }, g.title),
+          h("div", { className: "proto-grid" }, decisions.filter((d) => g.ids.indexOf(d.id) !== -1).map(cardFor)),
+          g.ids.indexOf("primary") !== -1
+            ? h(
+                "div",
+                { className: "intel-apple-card proto-ab" },
+                h("p", { className: "intel-why-kicker" }, "How to choose the antibody"),
+                h("ul", { className: "proto-ab-list" }, abStrategy.map((t, i) => h("li", { key: i }, t))),
+                h("p", { className: "proto-ab-note" }, "This tells you what to look for. The next tab — Antibody Compatibility — checks a specific antibody you've chosen (paste its product URL) for host/isotype/secondary match and validation evidence. Different jobs: here you decide what to buy; there you verify what you bought.")
+              )
+            : null
         )
       ),
       h(
@@ -1039,26 +1121,11 @@
     );
   }
 
-  function PredictedStrategySection({ number, experiment, strategyReady, recommendations, proteinFirstPlan, proteinIntelligence, onGenerate, onReset, status, proteinFirstLoading }) {
+  function PredictedStrategySection({ number, experiment, proteinIntelligence }) {
     return h(
       SectionCard,
       { number, title: "Predictive Strategy", subtitle: "Butterfly turns your Stage 1 protein data into concrete, adjustable Western blot protocol decisions — so you can set up (or amend) the run with the reasoning in front of you." },
-      h(ProtocolPlanner, { proteinIntelligence, experiment }),
-      h("div", { className: "dtree-divider" }, h("span", null, "Optional · deeper model")),
-      h(
-        "div",
-        { className: "strategy-action-stack" },
-        h(
-          "div",
-          { className: "button-row strategy-button-row" },
-          h("button", { className: "button button-primary", type: "button", onClick: onGenerate, disabled: !strategyReady || proteinFirstLoading }, proteinFirstLoading ? "Building model..." : "Generate detailed model"),
-          h("button", { className: "button button-ghost", type: "button", onClick: onReset }, "New run")
-        ),
-        h("div", { className: "status strategy-status" }, status)
-      ),
-      proteinFirstPlan
-        ? h(ProteinFirstPlanCard, { plan: proteinFirstPlan, proteinIntelligence, recommendations, experiment })
-        : null
+      h(ProtocolPlanner, { proteinIntelligence, experiment })
     );
   }
 
