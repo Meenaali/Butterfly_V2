@@ -599,6 +599,7 @@
         onGenerateProteinFirstPlan: generateProteinFirstPlan,
         proteinIntelLoading,
         proteinFirstLoading,
+        onNextStage: () => setActiveTab("strategy"),
       });
     } else if (activeTab === "strategy") {
       panel = h(PredictedStrategySection, {
@@ -614,6 +615,7 @@
         antibodyCompatibility,
         onCheck: checkAntibodyCompatibility,
         loading: antibodyCompatibilityLoading,
+        proteinIntelligence,
       });
     } else if (activeTab === "log") {
       panel = h(ExperimentLogSection, {
@@ -732,7 +734,7 @@
     );
   }
 
-  function ProteinIntelligenceSection({ number, experiment, updateField, proteinIntelligence, onFetchProteinIntelligence, onGenerateProteinFirstPlan, proteinIntelLoading, proteinFirstLoading }) {
+  function ProteinIntelligenceSection({ number, experiment, updateField, proteinIntelligence, onFetchProteinIntelligence, onGenerateProteinFirstPlan, proteinIntelLoading, proteinFirstLoading, onNextStage }) {
     return h(
       SectionCard,
       {
@@ -805,7 +807,20 @@
             ? h(ProteinIntelligencePane, { proteinIntelligence })
             : proteinIntelLoading
             ? h("div", { className: "empty-state" }, h("p", { style: { fontSize: "16px", fontWeight: "500" } }, "🔬 Fetching protein intelligence..."), h("p", { style: { fontSize: "13px", color: "#666", marginTop: "8px" } }, "Retrieving data from UniProt, AlphaFold, and EMBL-EBI (this takes ~3 seconds)"))
-            : h("div", { className: "empty-state" }, "Start by entering a UniProt ID, FASTA sequence, or both. Butterfly will then show predictive protein intelligence for you to review before moving to the predictive model.")
+            : h("div", { className: "empty-state" }, "Start by entering a UniProt ID, FASTA sequence, or both. Butterfly will then show predictive protein intelligence for you to review before moving to the predictive model."),
+          proteinIntelligence
+            ? h(
+                "div",
+                { className: "next-stage-cta" },
+                h(
+                  "div",
+                  { className: "next-stage-copy" },
+                  h("p", { className: "next-stage-label" }, "Next stage"),
+                  h("p", { className: "next-stage-text" }, "Protein intelligence is ready. Continue to ", h("strong", null, "WB Predictive Strategy"), " to turn this into a full protocol with reasoning.")
+                ),
+                h("button", { className: "button button-primary next-stage-btn", type: "button", onClick: onNextStage }, "Continue to WB Predictive Strategy →")
+              )
+            : null
         )
       )
     );
@@ -1075,7 +1090,7 @@
       h(
         "div",
         { className: "proto-context" },
-        h("p", { className: "proto-context-head" }, "First, set two things Butterfly can't read from the sequence"),
+        h("p", { className: "proto-context-head" }, "Butterfly cannot determine these parameters from the sequence alone — please select the most appropriate options"),
         h("p", { className: "proto-context-sub" }, "Your answers tune the load, blocking, antibody and detection choices below. Tap to select."),
         h(
           "div",
@@ -1224,44 +1239,171 @@
     );
   }
 
-  function AntibodyCompatibilitySection({ number, experiment, updateField, antibodyCompatibility, onCheck, loading }) {
+  const AB_PAIRING_RULES = [
+    {
+      title: "The secondary must target the primary's host",
+      body: "An anti-rabbit secondary only detects a rabbit primary. A host mismatch is the #1 cause of a totally blank blot — the detection antibody simply has nothing to bind.",
+    },
+    {
+      title: "Validated for Western blot specifically",
+      body: "An antibody validated for IHC, IF or ELISA may fail in WB, because WB needs the epitope to survive SDS denaturation. A vendor listing it for “WB” is a claim, not proof — look for an actual WB image on the datasheet.",
+    },
+    {
+      title: "A vendor selling it ≠ it works",
+      body: "Any supplier (Santa Cruz, Abcam, CST, Proteintech…) will sell an antibody to your target, but catalogue breadth isn't validation. Many widely-sold antibodies have poor specificity. Demand knockout/knockdown validation or independent citations for your species and application.",
+    },
+    {
+      title: "Clonality changes the risk profile",
+      body: "Recombinant or monoclonal antibodies give reproducible, single-epitope binding (cleaner, lot-stable). Polyclonals give stronger multi-epitope signal but more lot-to-lot variation and off-target bands.",
+    },
+    {
+      title: "Conjugate must match your detection",
+      body: "HRP secondary → ECL; AP → AP substrate; fluorophore → fluorescent imager. A mismatch here means no signal even when everything else is correct.",
+    },
+    {
+      title: "Species reactivity and epitope region",
+      body: "Confirm the antibody is validated against your sample species, and that its immunogen/epitope sits in an accessible region of your protein (see Stage 2's epitope guidance).",
+    },
+  ];
+
+  function AntibodyKnowledge() {
     return h(
-      SectionCard,
-      { number, title: "Antibody Compatibility", subtitle: "Paste product URLs or use manual fields to score primary validation evidence, clone/manufacturing clues, and whether the secondary matches the primary host, isotype, conjugate, application, and ECL strategy." },
+      "div",
+      { className: "intel-apple-card ab-knowledge" },
+      h("p", { className: "intel-why-kicker" }, "What a good antibody pairing needs"),
+      h("p", { className: "domain-sub" }, "Before you trust a product, check it against these principles — most failed blots trace back to one of them."),
       h(
         "div",
-        { className: "entry-card-grid antibody-split-grid" },
-        h(
-          FieldGroup,
-          { title: "Primary Antibody", copy: "Add the target antibody and its product page so Butterfly can extract host species, clone hints, Western blot use, and manufacturer validation evidence." },
-          renderInput("Primary target", experiment.primary_target, (value) => updateField("primary_target", value)),
-          renderInput("Primary supplier", experiment.primary_company, (value) => updateField("primary_company", value)),
-          renderInput("Primary clone / catalog hint", experiment.primary_clone, (value) => updateField("primary_clone", value)),
-          renderSelect("Antibody type", experiment.primary_type, (value) => updateField("primary_type", value), [["total", "Total protein"], ["phospho", "Phospho-specific"], ["loading-control", "Loading control"], ["low-abundance", "Low abundance"]]),
-          renderSelect("Primary host species", experiment.primary_host, (value) => updateField("primary_host", value), [["rabbit", "Rabbit"], ["mouse", "Mouse"], ["goat", "Goat"], ["rat", "Rat"], ["other", "Other"]]),
-          renderInput("Primary isotype", experiment.primary_isotype, (value) => updateField("primary_isotype", value)),
-          renderTextAreaInput("Primary antibody URL", experiment.primary_url, (value) => updateField("primary_url", value), "Example: Abcam primary antibody product page.")
-        ),
-        h(
-          FieldGroup,
-          { title: "Secondary Antibody", copy: "Add the secondary antibody page so Butterfly can assess whether it is the right anti-species, conjugate, and Western blot partner for the primary." },
-          renderSelect("Secondary target species", experiment.secondary_target_species, (value) => updateField("secondary_target_species", value), [["rabbit", "Anti-rabbit"], ["mouse", "Anti-mouse"], ["goat", "Anti-goat"], ["rat", "Anti-rat"], ["other", "Other"]]),
-          renderInput("Secondary isotype target", experiment.secondary_isotype, (value) => updateField("secondary_isotype", value)),
-          renderSelect("Secondary conjugate", experiment.secondary_conjugate, (value) => updateField("secondary_conjugate", value), [["HRP", "HRP"], ["AP", "AP"], ["fluorescent", "Fluorescent"], ["unknown", "Unknown"]]),
-          renderSelect("Detection", experiment.detection_method, (value) => updateField("detection_method", value), [["ECL", "ECL"], ["high-sensitivity ECL", "High-sensitivity ECL"], ["fluorescent", "Fluorescent"], ["other", "Other"]]),
-          renderTextAreaInput("Secondary antibody URL", experiment.secondary_url, (value) => updateField("secondary_url", value), "Example: Cytiva / Amersham HRP-linked secondary page.")
+        { className: "ab-rules-grid" },
+        AB_PAIRING_RULES.map((r, i) =>
+          h(
+            "div",
+            { className: "ab-rule", key: i },
+            h("p", { className: "ab-rule-title" }, r.title),
+            h("p", { className: "ab-rule-body" }, r.body)
+          )
         )
+      )
+    );
+  }
+
+  function AntibodyLiterature({ target }) {
+    const [status, setStatus] = useState(target ? "loading" : "idle");
+    const [results, setResults] = useState([]);
+
+    useEffect(() => {
+      if (!target) {
+        setStatus("idle");
+        setResults([]);
+        return undefined;
+      }
+      let cancelled = false;
+      setStatus("loading");
+      const query = encodeURIComponent(`${target} antibody western blot`);
+      fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${query}&format=json&pageSize=6&resultType=lite`)
+        .then((r) => {
+          if (!r.ok) throw new Error("search failed");
+          return r.json();
+        })
+        .then((data) => {
+          if (cancelled) return;
+          const list = ((data.resultList && data.resultList.result) || []).map((r) => ({
+            title: r.title,
+            authors: r.authorString,
+            journal: r.journalTitle,
+            year: r.pubYear,
+            url: r.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/` : r.doi ? `https://doi.org/${r.doi}` : null,
+          }));
+          setResults(list);
+          setStatus(list.length ? "ready" : "empty");
+        })
+        .catch(() => {
+          if (!cancelled) setStatus("error");
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [target]);
+
+    const pubmedSearch = target ? `https://pubmed.ncbi.nlm.nih.gov/?term=${encodeURIComponent(`${target} antibody western blot`)}` : "https://pubmed.ncbi.nlm.nih.gov/";
+
+    return h(
+      "div",
+      { className: "intel-apple-card ab-lit" },
+      h("p", { className: "intel-why-kicker" }, "Validation evidence in the literature"),
+      h(
+        "p",
+        { className: "domain-sub" },
+        target
+          ? `Independent papers that used a Western blot antibody for ${target}. Citations are the strongest evidence a clone actually works — check whether your candidate (or its clone) appears here.`
+          : "Add a primary target above and Butterfly will pull independent Western blot papers from the literature (via Europe PMC / PubMed)."
       ),
-      h("div", { className: "button-row" }, h("button", { className: "button button-primary", type: "button", onClick: onCheck, disabled: loading }, loading ? "Checking..." : "Check compatibility")),
-      antibodyCompatibility ? h(AntibodyCompatibilityResult, { result: antibodyCompatibility }) : h("div", { className: "empty-state" }, "Compatibility result will appear here. If a vendor page blocks parsing, Butterfly will still use the manual host/isotype/conjugate fields.")
+      status === "loading" ? h("p", { className: "ab-lit-state" }, "Searching PubMed / Europe PMC…") : null,
+      status === "error" ? h("p", { className: "ab-lit-state" }, h("a", { href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "Couldn't load automatically — search PubMed directly →")) : null,
+      status === "empty" ? h("p", { className: "ab-lit-state" }, "No direct matches — broaden the target name, or ", h("a", { href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "search PubMed →")) : null,
+      status === "ready"
+        ? h(
+            "div",
+            { className: "ab-lit-list" },
+            results.map((r, i) =>
+              h(
+                "a",
+                { className: "ab-lit-item", key: i, href: r.url || pubmedSearch, target: "_blank", rel: "noreferrer" },
+                h("p", { className: "ab-lit-title" }, r.title || "Untitled record"),
+                h("p", { className: "ab-lit-meta" }, [r.authors, r.journal, r.year].filter(Boolean).join(" · "))
+              )
+            )
+          )
+        : null,
+      status === "ready" ? h("a", { className: "ab-lit-more", href: pubmedSearch, target: "_blank", rel: "noreferrer" }, "See all on PubMed →") : null
+    );
+  }
+
+  function AntibodyCompatibilitySection({ number, experiment, updateField, antibodyCompatibility, onCheck, loading, proteinIntelligence }) {
+    const target = experiment.primary_target || (proteinIntelligence && proteinIntelligence.uniprot && proteinIntelligence.uniprot.protein_name) || experiment.protein_name || "";
+    return h(
+      SectionCard,
+      { number, title: "Antibody Compatibility", subtitle: "Stage 2 told you what to look for. Here you verify a specific primary + secondary you've chosen — and learn why a product on sale may still not work." },
+      h(
+        "div",
+        { className: "ab-section" },
+        h(AntibodyKnowledge),
+        h(AntibodyLiterature, { target }),
+        h(
+          "div",
+          { className: "ab-input-grid" },
+          h(
+            FieldGroup,
+            { title: "Primary antibody", copy: "Add the target antibody and its product page so Butterfly can extract host species, clone hints, WB use, and manufacturer validation evidence." },
+            renderInput("Primary target", experiment.primary_target, (value) => updateField("primary_target", value)),
+            renderInput("Primary supplier", experiment.primary_company, (value) => updateField("primary_company", value)),
+            renderInput("Primary clone / catalog hint", experiment.primary_clone, (value) => updateField("primary_clone", value)),
+            renderSelect("Antibody type", experiment.primary_type, (value) => updateField("primary_type", value), [["total", "Total protein"], ["phospho", "Phospho-specific"], ["loading-control", "Loading control"], ["low-abundance", "Low abundance"]]),
+            renderSelect("Primary host species", experiment.primary_host, (value) => updateField("primary_host", value), [["rabbit", "Rabbit"], ["mouse", "Mouse"], ["goat", "Goat"], ["rat", "Rat"], ["other", "Other"]]),
+            renderInput("Primary isotype", experiment.primary_isotype, (value) => updateField("primary_isotype", value)),
+            renderTextAreaInput("Primary antibody URL", experiment.primary_url, (value) => updateField("primary_url", value), "Example: Abcam primary antibody product page.")
+          ),
+          h(
+            FieldGroup,
+            { title: "Secondary antibody", copy: "Add the secondary so Butterfly can check it is the right anti-species, conjugate, and WB partner for the primary." },
+            renderSelect("Secondary target species", experiment.secondary_target_species, (value) => updateField("secondary_target_species", value), [["rabbit", "Anti-rabbit"], ["mouse", "Anti-mouse"], ["goat", "Anti-goat"], ["rat", "Anti-rat"], ["other", "Other"]]),
+            renderInput("Secondary isotype target", experiment.secondary_isotype, (value) => updateField("secondary_isotype", value)),
+            renderSelect("Secondary conjugate", experiment.secondary_conjugate, (value) => updateField("secondary_conjugate", value), [["HRP", "HRP"], ["AP", "AP"], ["fluorescent", "Fluorescent"], ["unknown", "Unknown"]]),
+            renderSelect("Detection", experiment.detection_method, (value) => updateField("detection_method", value), [["ECL", "ECL"], ["high-sensitivity ECL", "High-sensitivity ECL"], ["fluorescent", "Fluorescent"], ["other", "Other"]]),
+            renderTextAreaInput("Secondary antibody URL", experiment.secondary_url, (value) => updateField("secondary_url", value), "Example: Cytiva / Amersham HRP-linked secondary page.")
+          )
+        ),
+        h("div", { className: "button-row ab-check-row" }, h("button", { className: "button button-primary", type: "button", onClick: onCheck, disabled: loading }, loading ? "Checking…" : "Check this pairing")),
+        antibodyCompatibility ? h(AntibodyCompatibilityResult, { result: antibodyCompatibility }) : h("div", { className: "empty-state" }, "Your compatibility result appears here. If a vendor page blocks parsing, Butterfly still uses the manual host/isotype/conjugate fields above.")
+      )
     );
   }
 
   function AntibodyCompatibilityResult({ result }) {
     return h(
       "div",
-      { className: "recommendation-card comparison-card-wide" },
-      h("h3", null, `Compatibility: ${result.status}`),
+      { className: "intel-apple-card ab-result" },
+      h("h3", { className: "ab-result-title" }, `Compatibility: ${result.status}`),
       h("div", { className: `score-pill ${result.score >= 0.75 ? "score-good" : result.score >= 0.5 ? "score-warn" : "score-bad"}` }, `Confidence ${Math.round(result.score * 100)}%`),
       h("div", { className: `score-pill ${(result.url_match_score || 0) >= 0.75 ? "score-good" : (result.url_match_score || 0) >= 0.5 ? "score-warn" : "score-bad"}` }, `URL evidence match ${Math.round((result.url_match_score || 0) * 100)}%`),
       h("div", { className: `score-pill ${result.validation_score >= 0.72 ? "score-good" : result.validation_score >= 0.48 ? "score-warn" : "score-bad"}` }, `Primary validation ${Math.round((result.validation_score || 0) * 100)}% · ${result.validation_label || "limited"}`),
